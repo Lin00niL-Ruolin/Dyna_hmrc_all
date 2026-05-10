@@ -1,0 +1,3364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynaHMRC - 多机器人协作对话</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0f0f1a;
+            --bg-secondary: #1a1a2e;
+            --bg-panel: rgba(255, 255, 255, 0.03);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8b8b9a;
+            --accent-primary: #e94560;
+            --accent-secondary: #ff6b6b;
+            --success: #00d9ff;
+            --warning: #ffd700;
+            --error: #ff4444;
+            --alice-color: #ff6b9d;
+            --bob-color: #4ecdc4;
+            --lucy-color: #95e1d3;
+            --david-color: #a29bfe;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            min-height: 100vh;
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        /* 侧边栏 - 机器人和任务状态 */
+        .sidebar {
+            width: 420px;
+            min-width: 420px;
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.3em;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header .subtitle {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+
+        /* 阶段指示器 - 水平布局更紧凑 */
+        .phase-indicator {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .phase-title {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .phase-steps {
+            display: flex;
+            flex-direction: row;
+            gap: 6px;
+            justify-content: space-between;
+        }
+
+        .phase-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 6px;
+            border-radius: 10px;
+            transition: all 0.3s;
+            opacity: 0.4;
+            flex: 1;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .phase-step.active {
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            opacity: 1;
+        }
+
+        .phase-step.completed {
+            opacity: 0.9;
+            background: rgba(0, 217, 255, 0.1);
+        }
+
+        .phase-step.completed .phase-icon {
+            background: var(--success);
+        }
+
+        .phase-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1em;
+            background: var(--bg-secondary);
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+
+        .phase-step.active .phase-icon {
+            background: var(--accent-primary);
+            border-color: rgba(255, 255, 255, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(233, 69, 96, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(233, 69, 96, 0); }
+        }
+
+        .phase-name {
+            font-size: 0.65em;
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        .phase-step.active .phase-name {
+            color: var(--accent-primary);
+        }
+
+        /* 机器人状态面板 - 新设计 */
+        .robots-panel {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            flex: 1;
+            overflow-y: auto;
+            min-height: 200px;
+        }
+
+        .panel-title {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        /* 机器人网格布局 */
+        .robots-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .robot-card {
+            background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .robot-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            transition: all 0.3s;
+        }
+
+        .robot-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .robot-card.leader {
+            border-color: var(--warning);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.15);
+        }
+
+        .robot-card.leader::before {
+            background: var(--warning);
+        }
+
+        .robot-card.leader::after {
+            content: '👑 领导者';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.6em;
+            padding: 2px 6px;
+            background: var(--warning);
+            color: #000;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .robot-card.thinking {
+            border-color: var(--warning);
+            animation: thinking-pulse 2s infinite;
+        }
+
+        .robot-card.thinking::before {
+            background: var(--warning);
+        }
+
+        @keyframes thinking-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.2); }
+            50% { box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.1); }
+        }
+
+        .robot-card.executing {
+            border-color: var(--success);
+        }
+
+        .robot-card.executing::before {
+            background: var(--success);
+        }
+
+        .robot-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .robot-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            background: var(--bg-secondary);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .robot-avatar.alice { 
+            background: linear-gradient(135deg, var(--alice-color), #ff8fab); 
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+        }
+        .robot-avatar.bob { 
+            background: linear-gradient(135deg, var(--bob-color), #44a3aa); 
+            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+        }
+        .robot-avatar.lucy { 
+            background: linear-gradient(135deg, var(--lucy-color), #74b9ff); 
+            box-shadow: 0 4px 15px rgba(149, 225, 211, 0.3);
+        }
+        .robot-avatar.david { 
+            background: linear-gradient(135deg, var(--david-color), #6c5ce7); 
+            box-shadow: 0 4px 15px rgba(162, 155, 254, 0.3);
+        }
+
+        .robot-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .robot-name {
+            font-weight: 700;
+            font-size: 1em;
+            margin-bottom: 2px;
+        }
+
+        .robot-type {
+            font-size: 0.7em;
+            color: var(--text-secondary);
+            white-space: normal;
+            overflow: visible;
+            line-height: 1.3;
+        }
+
+        .robot-status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .robot-status-badge {
+            font-size: 0.65em;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.08);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .robot-status-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .robot-status-badge.thinking { 
+            background: rgba(255, 215, 0, 0.15); 
+            color: var(--warning); 
+        }
+        .robot-status-badge.executing { 
+            background: rgba(0, 217, 255, 0.15); 
+            color: var(--success); 
+        }
+        .robot-status-badge.idle { 
+            background: rgba(0, 255, 136, 0.15); 
+            color: #00ff88; 
+        }
+
+        .robot-capabilities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 10px;
+        }
+
+        .capability-tag {
+            font-size: 0.6em;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .robot-current-task {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-top: 12px;
+            border-left: 3px solid var(--accent-primary);
+            line-height: 1.4;
+        }
+
+        .robot-current-task:empty {
+            display: none;
+        }
+
+        /* API Key 输入面板 - 紧凑版 */
+        .api-key-panel {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .api-key-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.8em;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+
+        .api-key-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+        }
+
+        .api-key-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .api-key-toggle input {
+            accent-color: var(--accent-primary);
+            width: 16px;
+            height: 16px;
+        }
+
+        .api-status {
+            font-size: 0.7em;
+            margin-top: 10px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .api-status.mock {
+            background: rgba(255, 215, 0, 0.15);
+            color: var(--warning);
+        }
+
+        .api-status.kimi {
+            background: rgba(0, 217, 255, 0.15);
+            color: var(--success);
+        }
+
+        /* 演示控制面板 - 紧凑版 */
+        .demo-panel {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .demo-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 0.85em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.3);
+        }
+
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(108, 92, 231, 0.4);
+        }
+
+        .demo-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+
+        .demo-hint {
+            font-size: 0.7em;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            text-align: center;
+            opacity: 0.8;
+        }
+
+        /* 任务进度面板 - 紧凑版 */
+        .task-progress-panel {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.15);
+        }
+
+        .progress-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 12px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            min-width: 80px;
+        }
+
+        .stat-value {
+            font-size: 1.6em;
+            font-weight: bold;
+            color: var(--accent-primary);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.7em;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .progress-bar-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+        }
+
+        .completed-objects {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+
+        .object-tag {
+            font-size: 0.7em;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(0, 217, 255, 0.15);
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid rgba(0, 217, 255, 0.2);
+        }
+
+        .object-tag::before {
+            content: '✓';
+        }
+
+        /* 主聊天区域 */
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* 聊天头部 */
+        .chat-header {
+            padding: 15px 25px;
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(10px);
+        }
+
+        .chat-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .chat-title h2 {
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .online-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* 控制按钮 */
+        .chat-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .control-btn.active {
+            background: var(--accent-primary);
+        }
+
+        .speed-selector {
+            display: flex;
+            gap: 5px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .speed-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8em;
+            transition: all 0.3s;
+        }
+
+        .speed-btn.active {
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .filter-dropdown {
+            position: relative;
+        }
+
+        .filter-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            min-width: 150px;
+            display: none;
+            z-index: 100;
+        }
+
+        .filter-menu.show {
+            display: block;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+        }
+
+        .filter-option:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-option input {
+            accent-color: var(--accent-primary);
+        }
+
+        /* 消息区域 */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            scroll-behavior: smooth;
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        /* 时间分隔线 */
+        .time-divider {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+
+        .time-divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .time-divider span {
+            background: rgba(26, 26, 46, 0.9);
+            padding: 0 15px;
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            position: relative;
+        }
+
+        /* 系统消息 */
+        .system-message {
+            text-align: center;
+            margin: 20px 0;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .system-message-content {
+            display: inline-block;
+            background: rgba(233, 69, 96, 0.15);
+            border: 1px solid rgba(233, 69, 96, 0.3);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            color: var(--accent-primary);
+        }
+
+        /* 消息气泡 */
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            animation: slideIn 0.4s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .message.own {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4em;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .message-avatar.alice { background: linear-gradient(135deg, var(--alice-color), #ff8fab); }
+        .message-avatar.bob { background: linear-gradient(135deg, var(--bob-color), #44a3aa); }
+        .message-avatar.lucy { background: linear-gradient(135deg, var(--lucy-color), #74b9ff); }
+        .message-avatar.system { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+
+        .message-avatar.leader::after {
+            content: '👑';
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            font-size: 0.6em;
+            background: var(--bg-primary);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .message-content {
+            max-width: 70%;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+
+        .message.own .message-header {
+            flex-direction: row-reverse;
+        }
+
+        .message-author {
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .message-author.alice { color: var(--alice-color); }
+        .message-author.bob { color: var(--bob-color); }
+        .message-author.lucy { color: var(--lucy-color); }
+
+        .message-time {
+            font-size: 0.7em;
+            color: var(--text-secondary);
+        }
+
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.9em;
+            line-height: 1.5;
+            position: relative;
+            word-wrap: break-word;
+        }
+
+        .message:not(.own) .message-bubble {
+            background: var(--bg-panel);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.own .message-bubble {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-bubble.leader {
+            border: 2px solid var(--warning);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+        }
+
+        .message-bubble.reflection {
+            font-style: italic;
+            opacity: 0.7;
+            background: rgba(100, 100, 100, 0.2);
+        }
+
+        .message-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+
+        /* 思考中指示器 */
+        .thinking-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: rgba(255, 215, 0, 0.1);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--warning);
+            animation: thinking-bounce 1.4s infinite ease-in-out both;
+        }
+
+        .thinking-dot:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes thinking-bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .thinking-text {
+            font-size: 0.85em;
+            color: var(--warning);
+        }
+
+        /* 动作卡片 */
+        .action-card {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(0, 217, 255, 0.15);
+            border: 1px solid rgba(0, 217, 255, 0.3);
+            border-radius: 8px;
+            font-size: 0.85em;
+            color: var(--success);
+            margin-top: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-card:hover {
+            background: rgba(0, 217, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .action-card.success {
+            background: rgba(0, 255, 136, 0.15);
+            border-color: rgba(0, 255, 136, 0.3);
+            color: #00ff88;
+        }
+
+        .action-card.error {
+            background: rgba(255, 68, 68, 0.15);
+            border-color: rgba(255, 68, 68, 0.3);
+            color: var(--error);
+        }
+
+        /* 引用回复 */
+        .message-reply {
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        /* 打字机效果 */
+        .typing-text {
+            position: relative;
+        }
+
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: currentColor;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* 消息详情展开 */
+        .message-details {
+            margin-top: 10px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 0.8em;
+            display: none;
+        }
+
+        .message-details.show {
+            display: block;
+            animation: expand 0.3s ease;
+        }
+
+        @keyframes expand {
+            from { opacity: 0; transform: scaleY(0); }
+            to { opacity: 1; transform: scaleY(1); }
+        }
+
+        .detail-section {
+            margin-bottom: 10px;
+        }
+
+        .detail-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .detail-label {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            margin-bottom: 4px;
+        }
+
+        .detail-content {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .toggle-details {
+            font-size: 0.75em;
+            color: var(--accent-primary);
+            cursor: pointer;
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .toggle-details:hover {
+            text-decoration: underline;
+        }
+
+        /* 底部输入区域 */
+        /* 任务分析面板 */
+        .task-analysis-panel {
+            background: linear-gradient(135deg, rgba(78, 205, 196, 0.1) 0%, rgba(149, 225, 211, 0.1) 100%);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            border-radius: 12px;
+            margin: 0 25px 15px 25px;
+            overflow: hidden;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .analysis-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: rgba(78, 205, 196, 0.15);
+            border-bottom: 1px solid rgba(78, 205, 196, 0.2);
+        }
+
+        .analysis-icon {
+            font-size: 1.2em;
+        }
+
+        .analysis-title {
+            flex: 1;
+            font-weight: 600;
+            color: #4ecdc4;
+        }
+
+        .analysis-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+        }
+
+        .analysis-close:hover {
+            color: var(--accent-primary);
+        }
+
+        .analysis-content {
+            padding: 16px;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .analysis-content p {
+            margin-bottom: 8px;
+        }
+
+        .analysis-content .complexity-simple { color: #4ade80; }
+        .analysis-content .complexity-moderate { color: #fbbf24; }
+        .analysis-content .complexity-complex { color: #f87171; }
+        .analysis-content .complexity-very { color: #ef4444; font-weight: bold; }
+
+        .analysis-content .collaboration-yes { 
+            color: #4ade80; 
+            font-weight: 600;
+        }
+        .analysis-content .collaboration-no { 
+            color: #9ca3af; 
+        }
+
+        .analysis-content .subtasks {
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .analysis-content .subtasks li {
+            margin-bottom: 4px;
+            color: var(--text-secondary);
+        }
+
+        .analysis-loading {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+        }
+
+        .analysis-loading::after {
+            content: '';
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(78, 205, 196, 0.3);
+            border-top-color: #4ecdc4;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 输入提示 */
+        .input-hints {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding: 0 4px;
+        }
+
+        .hint {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+        }
+
+        .example-tasks-btn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--accent-primary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-tasks-btn:hover {
+            background: rgba(233, 69, 96, 0.1);
+            border-color: var(--accent-primary);
+        }
+
+        /* 示例任务弹窗 */
+        .example-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .example-modal.active {
+            display: flex;
+        }
+
+        .example-modal-content {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .example-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .example-modal-title {
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .example-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+
+        .example-category {
+            margin-bottom: 20px;
+        }
+
+        .example-category-title {
+            font-size: 0.9em;
+            color: var(--accent-primary);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .example-task-item {
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background: var(--bg-panel);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+
+        .example-task-item:hover {
+            background: rgba(233, 69, 96, 0.1);
+            border: 1px solid var(--accent-primary);
+        }
+
+        .example-task-item .complexity-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            margin-left: 10px;
+        }
+
+        .badge-simple { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .badge-moderate { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        .badge-complex { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .badge-very { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        .badge-very_complex { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+        .chat-input-area {
+            padding: 20px 25px;
+            background: var(--bg-panel);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 0.95em;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+        }
+
+        .send-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 状态指示器 */
+        .status-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85em;
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+
+        .status-indicator.connecting .status-icon {
+            color: var(--warning);
+            animation: spin 1s linear infinite;
+        }
+
+        .status-indicator.connected .status-icon {
+            color: #00ff88;
+        }
+
+        .status-indicator.error .status-icon {
+            color: var(--error);
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 280px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                max-height: 40vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>🤖 DynaHMRC</h1>
+                <div class="subtitle">多机器人协作系统</div>
+            </div>
+
+            <!-- 阶段指示器 -->
+            <div class="phase-indicator">
+                <div class="phase-title">执行阶段</div>
+                <div class="phase-steps">
+                    <div class="phase-step" data-phase="self-description">
+                        <div class="phase-icon">📝</div>
+                        <div class="phase-name">自我介绍</div>
+                    </div>
+                    <div class="phase-step" data-phase="task-allocation">
+                        <div class="phase-icon">📋</div>
+                        <div class="phase-name">任务分配</div>
+                    </div>
+                    <div class="phase-step" data-phase="voting">
+                        <div class="phase-icon">👑</div>
+                        <div class="phase-name">投票选举</div>
+                    </div>
+                    <div class="phase-step" data-phase="execution">
+                        <div class="phase-icon">▶️</div>
+                        <div class="phase-name">执行</div>
+                    </div>
+                    <div class="phase-step" data-phase="reflection">
+                        <div class="phase-icon">🔄</div>
+                        <div class="phase-name">反思</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 机器人状态 -->
+            <div class="robots-panel">
+                <div class="panel-title">机器人状态</div>
+                <div id="robots-container" class="robots-grid">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+
+            <!-- API Key 配置 -->
+            <div class="api-key-panel">
+                <div class="panel-title">API 配置</div>
+                <input type="password" class="api-key-input" id="api-key-input" placeholder="输入 Kimi API 密钥">
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                    <button class="demo-btn" id="use-default-key-btn" style="flex: 1; padding: 6px 10px; font-size: 0.85em;">
+                        <span>🔑</span> 使用默认密钥
+                    </button>
+                    <button class="demo-btn" id="clear-key-btn" style="flex: 1; padding: 6px 10px; font-size: 0.85em;">
+                        <span>🗑️</span> 清除密钥
+                    </button>
+                </div>
+                <label class="api-key-toggle">
+                    <input type="checkbox" id="use-mock" checked>
+                    <span>使用 Mock 模式</span>
+                </label>
+                <div class="api-status mock" id="api-status">
+                    <span>🟡</span> 当前使用 Mock 模式
+                </div>
+            </div>
+
+            <!-- 演示控制 -->
+            <div class="demo-panel">
+                <div class="panel-title">演示控制</div>
+                <button class="demo-btn" id="demo-btn">
+                    <span>🎬</span> 运行模拟演示
+                </button>
+                <div class="demo-hint">点击运行预设演示任务</div>
+            </div>
+
+            <!-- 任务进度 -->
+            <div class="task-progress-panel">
+                <div class="panel-title">任务进度</div>
+                <div class="progress-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="completed-count">0</div>
+                        <div class="stat-label">已完成</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="remaining-count">0</div>
+                        <div class="stat-label">剩余</div>
+                    </div>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="task-progress-bar" style="width: 0%"></div>
+                </div>
+                <div class="completed-objects" id="completed-objects">
+                    <!-- 动态生成 -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主聊天区域 -->
+        <main class="chat-container">
+            <!-- 聊天头部 -->
+            <header class="chat-header">
+                <div class="chat-title">
+                    <h2>🤖 机器人团队对话</h2>
+                    <div class="online-status">
+                        <span class="status-dot"></span>
+                        <span>4个机器人在线</span>
+                    </div>
+                </div>
+                <div class="chat-controls">
+                    <button class="control-btn" id="play-pause-btn">
+                        <span>⏸️</span> 暂停
+                    </button>
+                    <div class="speed-selector">
+                        <button class="speed-btn" data-speed="0.5">0.5x</button>
+                        <button class="speed-btn active" data-speed="1">1x</button>
+                        <button class="speed-btn" data-speed="2">2x</button>
+                    </div>
+                    <div class="filter-dropdown">
+                        <button class="control-btn" id="filter-btn">
+                            <span>🔍</span> 筛选
+                        </button>
+                        <div class="filter-menu" id="filter-menu">
+                            <label class="filter-option">
+                                <input type="checkbox" checked value="all">
+                                <span>显示全部</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" checked value="Alice">
+                                <span>🚗 Alice</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" checked value="Bob">
+                                <span>🦾 Bob</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" checked value="David">
+                                <span>🤖 David</span>
+                            </label>
+                            <label class="filter-option">
+                                <input type="checkbox" checked value="Lucy">
+                                <span>🚁 Lucy</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 消息区域 -->
+            <div class="messages-container" id="messages-container">
+                <!-- 动态生成消息 -->
+            </div>
+
+            <!-- 任务分析面板 -->
+            <div class="task-analysis-panel" id="task-analysis-panel" style="display: none;">
+                <div class="analysis-header">
+                    <span class="analysis-icon">📊</span>
+                    <span class="analysis-title">任务分析</span>
+                    <button class="analysis-close" id="analysis-close">×</button>
+                </div>
+                <div class="analysis-content" id="analysis-content">
+                    <!-- 分析结果将在这里显示 -->
+                </div>
+            </div>
+
+            <!-- 场景选择器 -->
+            <div class="scene-selector-area" style="padding: 10px 25px; background: rgba(30, 41, 59, 0.5); border-bottom: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span style="color: var(--text-secondary); font-size: 0.9em;">🏠 选择场景:</span>
+                    <select id="scene-select" style="flex: 1; padding: 8px 12px; border-radius: 8px; background: #1e293b; border: 1px solid var(--border-color); color: #f1f5f9; font-size: 0.95em;">
+                        <option value="">-- 请选择场景 --</option>
+                    </select>
+                    <button id="scene-info-btn" style="padding: 8px 16px; background: rgba(78, 205, 196, 0.2); border: 1px solid #4ecdc4; color: #4ecdc4; border-radius: 8px; cursor: pointer; font-size: 0.9em;">
+                        📋 场景详情
+                    </button>
+                </div>
+                <div id="current-scene-info" style="margin-top: 8px; font-size: 0.85em; color: var(--text-secondary); display: none;">
+                    <!-- 当前场景信息显示 -->
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <textarea class="chat-input" id="chat-input" placeholder="输入任务指令，例如：Packing：将客厅茶几、沙发和厨房餐桌上的杯子、遥控器、餐具收集放入托盘..." rows="1"></textarea>
+                    <button class="send-btn" id="analyze-btn" title="分析任务复杂度">
+                        <span>📊</span> 分析
+                    </button>
+                    <button class="send-btn" id="send-btn">
+                        <span>🚀</span> 启动任务
+                    </button>
+                </div>
+                <div class="input-hints">
+                    <span class="hint">💡 支持三种任务类型：📦装箱（拾取放置）、🎨分类（颜色匹配）、🥪堆叠（顺序堆叠）| 点击右侧查看示例任务</span>
+                    <button class="example-tasks-btn" id="example-tasks-btn">查看示例任务</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 连接状态指示器 -->
+    <div class="status-indicator connecting" id="status-indicator">
+        <span class="status-icon">⟳</span>
+        <span class="status-text">连接中...</span>
+    </div>
+
+    <script>
+        // ==================== 配置和状态 ====================
+        const CONFIG = {
+            robots: {
+                Alice: { name: 'Alice', type: 'MobileManipulation', avatar: '🚗', color: 'alice', capabilities: ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'] },
+                Bob: { name: 'Bob', type: 'Manipulator', avatar: '🦾', color: 'bob', capabilities: ['pick', 'place', 'communicate', 'wait'] },
+                David: { name: 'David', type: 'Mobile', avatar: '🤖', color: 'david', capabilities: ['navigate', 'communicate', 'wait'] },
+                Lucy: { name: 'Lucy', type: 'Drone', avatar: '🚁', color: 'lucy', capabilities: ['navigate', 'pick', 'place', 'communicate', 'wait'] }
+            },
+            phases: ['self-description', 'task-allocation', 'voting', 'execution', 'reflection']
+        };
+
+        const state = {
+            isPlaying: true,
+            playbackSpeed: 1,
+            currentPhase: null,
+            leader: null,
+            messages: [],
+            taskProgress: { completed: [], remaining: [] },
+            filter: ['Alice', 'Bob', 'David', 'Lucy'],
+            messageQueue: [],
+            isProcessingQueue: false
+        };
+
+        // ==================== DOM 元素 ====================
+        const elements = {
+            messagesContainer: document.getElementById('messages-container'),
+            robotsContainer: document.getElementById('robots-container'),
+            completedCount: document.getElementById('completed-count'),
+            remainingCount: document.getElementById('remaining-count'),
+            progressBar: document.getElementById('task-progress-bar'),
+            completedObjects: document.getElementById('completed-objects'),
+            playPauseBtn: document.getElementById('play-pause-btn'),
+            speedBtns: document.querySelectorAll('.speed-btn'),
+            filterBtn: document.getElementById('filter-btn'),
+            filterMenu: document.getElementById('filter-menu'),
+            chatInput: document.getElementById('chat-input'),
+            sendBtn: document.getElementById('send-btn'),
+            statusIndicator: document.getElementById('status-indicator'),
+            apiKeyInput: document.getElementById('api-key-input'),
+            useMockCheckbox: document.getElementById('use-mock'),
+            useDefaultKeyBtn: document.getElementById('use-default-key-btn'),
+            clearKeyBtn: document.getElementById('clear-key-btn'),
+            apiStatus: document.getElementById('api-status'),
+            demoBtn: document.getElementById('demo-btn')
+        };
+
+        // ==================== 消息队列管理 ====================
+        class MessageQueue {
+            constructor() {
+                this.queue = [];
+                this.isProcessing = false;
+                this.processingDelay = 1000;
+            }
+
+            add(message) {
+                this.queue.push(message);
+                if (!this.isProcessing) {
+                    this.process();
+                }
+            }
+
+            async process() {
+                if (this.isProcessing || this.queue.length === 0) return;
+                
+                this.isProcessing = true;
+                
+                while (this.queue.length > 0 && state.isPlaying) {
+                    const message = this.queue.shift();
+                    await this.displayMessage(message);
+                    await this.delay(this.processingDelay / state.playbackSpeed);
+                }
+                
+                this.isProcessing = false;
+            }
+
+            async displayMessage(message) {
+                // 检查过滤
+                if (message.robot_id && !state.filter.includes(message.robot_id)) {
+                    return;
+                }
+
+                // 根据消息的 phase 字段切换阶段（确保阶段和消息同步）
+                if (message.phase && message.phase !== state.currentPhase) {
+                    setPhase(message.phase);
+                }
+
+                // Show thinking
+                if ((message.thought || message.description) && !message.action) {
+                    this.showThinking(message);
+                    await this.delay(800 / state.playbackSpeed);
+                    this.hideThinking(message.robot_id);
+                }
+
+                // 显示消息
+                const msgElement = this.createMessageElement(message);
+                elements.messagesContainer.appendChild(msgElement);
+                this.scrollToBottom();
+
+                // 打字机效果 - 组合所有文本字段
+                let displayText = '';
+                if (message.thought) {
+                    displayText += '<strong>Thought:</strong><br>' + message.thought;
+                }
+                if (message.description) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Description:</strong><br>' + message.description;
+                }
+                if (message.plan) {
+                    if (displayText) displayText += '\n\n';
+                    let planText = message.plan;
+                    if (typeof message.plan === 'object' && message.plan !== null) {
+                        planText = message.plan.description || JSON.stringify(message.plan);
+                    }
+                    displayText += '<strong>Plan:</strong><br>' + planText;
+                }
+                if (message.campaign) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Campaign Speech:</strong><br>' + message.campaign;
+                }
+                if (message.vote_for) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Vote For:</strong><br>' + message.vote_for;
+                }
+                if (message.reasoning) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>投票理由:</strong><br>' + message.reasoning;
+                }
+                // Reflection stage fields
+                if (message.summary) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>📋 总结:</strong><br>' + message.summary;
+                }
+                if (message.future_plan) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>🎯 未来计划:</strong><br>' + message.future_plan;
+                }
+                if (message.updated_plan) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>📝 Updated Plan:</strong><br>' + message.updated_plan;
+                }
+                if (message.action) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Action:</strong><br>' + message.action;
+                }
+                if (message.summary) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Summary:</strong><br>' + message.summary;
+                }
+                if (message.future_plan) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Future Plan:</strong><br>' + message.future_plan;
+                }
+                if (message.updated_plan) {
+                    if (displayText) displayText += '\n\n';
+                    displayText += '<strong>Updated Plan:</strong><br>' + message.updated_plan;
+                }
+                if (displayText) {
+                    // 确保message-text元素存在
+                    const messageTextElement = msgElement.querySelector('.message-text');
+                    if (messageTextElement) {
+                        await this.typewriterEffect(messageTextElement, displayText);
+                    } else {
+                        console.error('message-text element not found');
+                    }
+                }
+
+                // 更新状态
+                updateRobotStatus(message);
+            }
+
+            showThinking(message) {
+                const robot = CONFIG.robots[message.robot_id];
+                const thinkingHtml = `
+                    <div class="message thinking-message" id="thinking-${message.robot_id}">
+                        <div class="message-avatar ${robot.color}">${robot.avatar}</div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <span class="message-author ${robot.color}">${robot.name}</span>
+                            </div>
+                            <div class="thinking-indicator">
+                                <div class="thinking-dots">
+                                    <div class="thinking-dot"></div>
+                                    <div class="thinking-dot"></div>
+                                    <div class="thinking-dot"></div>
+                                </div>
+                                <span class="thinking-text">思考中...</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = thinkingHtml;
+                elements.messagesContainer.appendChild(tempDiv.firstElementChild);
+                this.scrollToBottom();
+            }
+
+            hideThinking(robotId) {
+                const thinkingEl = document.getElementById(`thinking-${robotId}`);
+                if (thinkingEl) {
+                    thinkingEl.remove();
+                }
+            }
+
+            createMessageElement(message) {
+                const robot = CONFIG.robots[message.robot_id] || { name: 'System', avatar: '🤖', color: 'system' };
+                const isLeader = message.robot_id === state.leader;
+                const replyHtml = message.reply_to ? `
+                    <div class="message-reply">
+                        Reply to @${message.reply_to}: ${message.reply_text || '...'}
+                    </div>
+                ` : '';
+
+                const actionHtml = message.action ? `
+                    <div class="action-card ${message.action_status || ''}">
+                        <span>⚡</span>
+                        <span>${message.action}</span>
+                    </div>
+                ` : '';
+
+                const detailsHtml = message.full_prompt ? `
+                    <div class="toggle-details" onclick="toggleDetails(this)">
+                        <span>📋</span> 查看详情
+                    </div>
+                    <div class="message-details">
+                        <div class="detail-section">
+                            <div class="detail-label">Prompt:</div>
+                            <div class="detail-content">${escapeHtml(message.full_prompt)}</div>
+                        </div>
+                        <div class="detail-section">
+                            <div class="detail-label">Response:</div>
+                            <div class="detail-content">${escapeHtml(message.full_response || '')}</div>
+                        </div>
+                    </div>
+                ` : '';
+
+                const div = document.createElement('div');
+                div.className = `message ${message.is_system ? 'system' : ''}`;
+                div.innerHTML = `
+                    <div class="message-avatar ${robot.color} ${isLeader ? 'leader' : ''}">${robot.avatar}</div>
+                    <div class="message-content">
+                        <div class="message-header">
+                            <span class="message-author ${robot.color}">${robot.name} ${isLeader ? '👑' : ''}</span>
+                            <span class="message-time">${message.timestamp || new Date().toLocaleTimeString()}</span>
+                        </div>
+                        <div class="message-bubble ${isLeader ? 'leader' : ''} ${message.is_reflection ? 'reflection' : ''}">
+                            ${replyHtml}
+                            <div class="message-text"></div>
+                            ${actionHtml}
+                        </div>
+                        ${detailsHtml}
+                    </div>
+                `;
+                return div;
+            }
+
+            async typewriterEffect(element, text) {
+                if (!element) return;
+                element.innerHTML = '<span class="typing-text"></span><span class="typing-cursor"></span>';
+                const textSpan = element.querySelector('.typing-text');
+                
+                // 简化处理，直接显示完整文本
+                // 不再等待state.isPlaying为true，避免程序阻塞
+                textSpan.innerHTML = text;
+                element.querySelector('.typing-cursor')?.remove();
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            scrollToBottom() {
+                elements.messagesContainer.scrollTop = elements.messagesContainer.scrollHeight;
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            waitForResume() {
+                return new Promise(resolve => {
+                    const check = () => {
+                        if (state.isPlaying) resolve();
+                        else setTimeout(check, 100);
+                    };
+                    check();
+                });
+            }
+        }
+
+        const messageQueue = new MessageQueue();
+
+        // ==================== 系统消息 ====================
+        function addSystemMessage(content) {
+            const div = document.createElement('div');
+            div.className = 'system-message';
+            div.innerHTML = `<div class="system-message-content">${content}</div>`;
+            elements.messagesContainer.appendChild(div);
+            messageQueue.scrollToBottom();
+        }
+
+        function addTimeDivider(time) {
+            const div = document.createElement('div');
+            div.className = 'time-divider';
+            div.innerHTML = `<span>${time}</span>`;
+            elements.messagesContainer.appendChild(div);
+            messageQueue.scrollToBottom();
+        }
+
+        // ==================== 阶段管理 ====================
+        function setPhase(phase) {
+            state.currentPhase = phase;
+            document.querySelectorAll('.phase-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+                if (step.dataset.phase === phase) {
+                    step.classList.add('active');
+                } else if (CONFIG.phases.indexOf(step.dataset.phase) < CONFIG.phases.indexOf(phase)) {
+                    step.classList.add('completed');
+                }
+            });
+
+            const phaseNames = {
+                'self-description': '═══ 进入【自我介绍】阶段 ═══',
+                'task-allocation': '═══ 进入【任务分配】阶段 ═══',
+                'voting': '═══ 进入【投票选举】阶段 ═══',
+                'execution': '═══ 进入【执行】阶段 ═══',
+                'reflection': '═══ 进入【反思】阶段 ═══'
+            };
+            addSystemMessage(phaseNames[phase] || `--- ${phase} ---`);
+        }
+
+        // ==================== 机器人状态管理 ====================
+        function initRobots() {
+            elements.robotsContainer.innerHTML = '';
+            Object.entries(CONFIG.robots).forEach(([id, robot]) => {
+                const card = document.createElement('div');
+                card.className = 'robot-card';
+                card.id = `robot-card-${id}`;
+                
+                // Capability labels - already in English
+                const capabilityLabels = {
+                    'navigate': 'Navigation',
+                    'manipulation': 'Manipulation',
+                    'transport': 'Transport',
+                    'open': 'Open',
+                    'precision': 'Precision',
+                    'pick': 'Pick',
+                    'place': 'Place',
+                    'aerial': 'Aerial',
+                    'exploration': 'Exploration',
+                    'suction': 'Suction',
+                    'move': 'Move',
+                    'communicate': 'Comm',
+                    'wait': 'Wait'
+                };
+                
+                const capabilitiesHtml = robot.capabilities.slice(0, 3).map(cap => 
+                    `<span class="capability-tag">${capabilityLabels[cap] || cap}</span>`
+                ).join('');
+                
+                card.innerHTML = `
+                    <div class="robot-header">
+                        <div class="robot-avatar ${robot.color}">${robot.avatar}</div>
+                        <div class="robot-info">
+                            <div class="robot-name">${robot.name}</div>
+                            <div class="robot-type">${robot.type}</div>
+                        </div>
+                    </div>
+                    <div class="robot-status-row">
+                        <div class="robot-capabilities">${capabilitiesHtml}</div>
+                        <span class="robot-status-badge idle" id="status-${id}">空闲</span>
+                    </div>
+                    <div class="robot-current-task" id="task-${id}">等待任务分配...</div>
+                `;
+                elements.robotsContainer.appendChild(card);
+            });
+        }
+
+        function updateRobotStatus(message) {
+            if (!message.robot_id) return;
+            
+            const card = document.getElementById(`robot-card-${message.robot_id}`);
+            const statusBadge = document.getElementById(`status-${message.robot_id}`);
+            const taskDiv = document.getElementById(`task-${message.robot_id}`);
+            
+            if (!card) return;
+
+            // 更新Leader状态
+            if (message.is_leader) {
+                state.leader = message.robot_id;
+                document.querySelectorAll('.robot-card').forEach(c => c.classList.remove('leader'));
+                card.classList.add('leader');
+            }
+
+            // Update status
+            card.classList.remove('thinking', 'executing');
+            if (message.thought && !message.action) {
+                card.classList.add('thinking');
+                statusBadge.className = 'robot-status-badge thinking';
+                statusBadge.innerHTML = '<span>思考中</span>';
+            } else if (message.action) {
+                card.classList.add('executing');
+                statusBadge.className = 'robot-status-badge executing';
+                statusBadge.innerHTML = '<span>执行中</span>';
+                taskDiv.textContent = message.action;
+            }
+
+            // Action completed
+            if (message.action_status === 'success') {
+                statusBadge.className = 'robot-status-badge idle';
+                statusBadge.innerHTML = '<span>已完成</span>';
+            }
+        }
+
+        // ==================== 任务进度 ====================
+        function updateTaskProgress(completed, remaining) {
+            state.taskProgress.completed = completed;
+            state.taskProgress.remaining = remaining;
+            
+            elements.completedCount.textContent = completed.length;
+            elements.remainingCount.textContent = remaining.length;
+            
+            const total = completed.length + remaining.length;
+            const percentage = total > 0 ? (completed.length / total * 100) : 0;
+            elements.progressBar.style.width = `${percentage}%`;
+            
+            elements.completedObjects.innerHTML = completed.map(obj => 
+                `<span class="object-tag">${obj}</span>`
+            ).join('');
+        }
+
+        // ==================== 事件处理 ====================
+        elements.playPauseBtn.addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            elements.playPauseBtn.innerHTML = state.isPlaying ? 
+                '<span>⏸️</span> Pause' : '<span>▶️</span> Resume';
+            elements.playPauseBtn.classList.toggle('active', !state.isPlaying);
+            
+            if (state.isPlaying) {
+                messageQueue.process();
+            }
+        });
+
+        elements.speedBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                elements.speedBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.playbackSpeed = parseFloat(btn.dataset.speed);
+            });
+        });
+
+        elements.filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.filterMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', () => {
+            elements.filterMenu.classList.remove('show');
+        });
+
+        elements.filterMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        elements.filterMenu.querySelectorAll('input').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const checked = Array.from(elements.filterMenu.querySelectorAll('input:checked'))
+                    .map(cb => cb.value);
+                if (checked.includes('all')) {
+                    state.filter = ['Alice', 'Bob', 'David', 'Lucy'];
+                } else {
+                    state.filter = checked;
+                }
+            });
+        });
+
+        elements.sendBtn.addEventListener('click', startTask);
+        elements.chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                startTask();
+            }
+        });
+
+        elements.chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // API Key 和 Mock 模式切换
+        elements.useMockCheckbox.addEventListener('change', () => {
+            const useMock = elements.useMockCheckbox.checked;
+            elements.apiKeyInput.disabled = useMock;
+            
+            if (useMock) {
+                elements.apiStatus.className = 'api-status mock';
+                elements.apiStatus.innerHTML = '<span>🟡</span> 当前使用 Mock 模式';
+            } else {
+                elements.apiStatus.className = 'api-status kimi';
+                elements.apiStatus.innerHTML = '<span>🔵</span> 将使用 Kimi API';
+            }
+        });
+
+        // 初始化 API 配置
+        async function initAPI() {
+            const apiKey = elements.apiKeyInput.value.trim();
+            const useMock = elements.useMockCheckbox.checked;
+
+            try {
+                const response = await fetch('/api/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: apiKey || null,
+                        use_mock: useMock
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    console.log('API 初始化成功:', data.message);
+                    elements.apiStatus.innerHTML = `<span>✅</span> ${data.llm_type} 模式已就绪`;
+                } else {
+                    console.error('API 初始化失败:', data.error);
+                    elements.apiStatus.innerHTML = `<span>❌</span> 初始化失败`;
+                }
+            } catch (error) {
+                console.error('初始化请求失败:', error);
+            }
+        }
+
+        // 页面加载时初始化 - 移到DOMContentLoaded中执行
+        // initAPI() 现在统一在 DOMContentLoaded 中调用
+
+        function toggleDetails(btn) {
+            const details = btn.nextElementSibling;
+            details.classList.toggle('show');
+            btn.innerHTML = details.classList.contains('show') ? 
+                '<span>📋</span> 收起详情' : '<span>📋</span> 查看详情';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ==================== WebSocket / API 连接 ====================
+        async function startTask() {
+            const task = elements.chatInput.value.trim();
+            if (!task) return;
+
+            elements.sendBtn.disabled = true;
+            elements.sendBtn.innerHTML = '<span>⏳</span> 执行中...';
+
+            // Clear message area
+            elements.messagesContainer.innerHTML = '';
+            state.messages = [];
+
+            // 获取 API 配置
+            const apiKey = elements.apiKeyInput.value.trim();
+            const useMock = elements.useMockCheckbox.checked;
+
+            // 先初始化 API
+            try {
+                const initResponse = await fetch('/api/init', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: apiKey || null,
+                        use_mock: useMock
+                    })
+                });
+
+                const initData = await initResponse.json();
+                if (!initData.success) {
+                    throw new Error(initData.error || '初始化失败');
+                }
+
+                // 更新状态显示
+                elements.apiStatus.innerHTML = `<span>✅</span> ${initData.llm_type} 模式`;
+            } catch (error) {
+                console.error('初始化失败:', error);
+                addSystemMessage(`⚠️ 将使用默认配置继续运行`);
+            }
+
+            let retryCount = 0;
+            const maxRetries = 2;
+            let lastPhase = '';
+            
+            while (retryCount <= maxRetries) {
+                try {
+                    if (retryCount > 0) {
+                        addSystemMessage(`🔄 正在重试第 ${retryCount}/${maxRetries} 次...`);
+                    }
+                    
+                    // 使用 AbortController 设置更长的超时时间（5分钟）
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5分钟超时
+                    
+                    const response = await fetch('/api/execute/stream', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ task }),
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+
+                    if (!response.ok) {
+                        throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+                    }
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let hasError = false;
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const text = decoder.decode(value);
+                        const events = text.split('\n\n').filter(e => e.trim());
+
+                        for (const event of events) {
+                            const result = parseSSEEvent(event);
+                            if (result && result.error) {
+                                hasError = true;
+                            }
+                            if (result && result.phase) {
+                                lastPhase = result.phase;
+                            }
+                        }
+                    }
+                    
+                    // 成功完成，跳出重试循环
+                    break;
+                    
+                } catch (error) {
+                    console.error(`[Attempt ${retryCount + 1}] Error:`, error);
+                    
+                    // 处理 AbortController 的取消错误
+                    if (error.name === 'AbortError') {
+                        console.log('[INFO] Request was aborted, likely due to timeout');
+                    }
+                    
+                    if (retryCount === maxRetries) {
+                        // 最后一次重试也失败了
+                        let errorMsg = error.message;
+                        if (error.name === 'AbortError' || error.message.includes('network') || error.message.includes('fetch')) {
+                            errorMsg = '网络连接中断或请求超时';
+                            if (lastPhase) {
+                                errorMsg += ` (发生在${getPhaseName(lastPhase)}阶段)`;
+                            }
+                            errorMsg += '。Kimi API 可能需要较长时间处理，建议增加超时时间或使用 Mock 模式测试。';
+                        }
+                        addSystemMessage(`❌ 错误: ${errorMsg}`);
+                        addSystemMessage(`💡 建议: 请检查网络连接，或尝试使用 Mock 模式测试`);
+                    } else {
+                        retryCount++;
+                        addSystemMessage(`⏳ 第 ${retryCount} 次重试中...`);
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // 等待2秒后重试
+                    }
+                }
+            }
+            
+            elements.sendBtn.disabled = false;
+            elements.sendBtn.innerHTML = '<span>🚀</span> 开始任务';
+        }
+
+        function getPhaseName(phase) {
+            const phaseNames = {
+                'self-description': '自我介绍',
+                'task-allocation': '任务分配',
+                'voting': '投票选举',
+                'execution': '执行阶段',
+                'reflection': '反思阶段',
+                'completed': '完成'
+            };
+            return phaseNames[phase] || phase;
+        }
+
+        function parseSSEEvent(eventText) {
+            const lines = eventText.split('\n');
+            let event = '';
+            let dataLines = [];
+
+            for (const line of lines) {
+                if (line.startsWith('event: ')) {
+                    event = line.slice(7);
+                } else if (line.startsWith('data: ')) {
+                    dataLines.push(line.slice(6));
+                } else if (line === '') {
+                    // 空行，忽略
+                } else {
+                    // 继续前一行的data
+                    dataLines.push(line);
+                }
+            }
+
+            const data = dataLines.join('\n');
+            if (!data) return null;
+
+            try {
+                const parsed = JSON.parse(data);
+                handleServerEvent(event, parsed);
+                
+                // 返回阶段信息用于错误追踪
+                const result = {};
+                if (event === 'phase' && parsed.phase) {
+                    result.phase = parsed.phase;
+                }
+                if (event === 'error') {
+                    result.error = true;
+                }
+                return result;
+            } catch (e) {
+                console.error('Parse error:', e, 'Data:', data);
+                return { error: true };
+            }
+        }
+
+        function handleServerEvent(event, data) {
+            switch (event) {
+                case 'start':
+                    addTimeDivider(new Date().toLocaleTimeString());
+                    addSystemMessage(`🚀 开始任务`);
+                    break;
+
+                case 'phase':
+                    // 只在消息队列为空时通过 phase 事件切换阶段
+                    // 否则阶段切换由消息队列中的消息驱动
+                    if (messageQueue.queue.length === 0 && !messageQueue.isProcessing) {
+                        setPhase(data.phase);
+                    }
+                    break;
+
+                case 'thinking':
+                    // 处理思考内容
+                    break;
+
+                case 'robot_message':
+                    messageQueue.add({
+                        robot_id: data.robot_id,
+                        thought: data.thought,
+                        description: data.description,
+                        plan: data.plan,
+                        campaign: data.campaign,
+                        vote_for: data.vote_for,
+                        reasoning: data.reasoning,
+                        summary: data.summary,
+                        future_plan: data.future_plan,
+                        updated_plan: data.updated_plan,
+                        action: data.action,
+                        action_status: data.action_status,
+                        feedback_type: data.feedback_type,
+                        is_leader: data.is_leader,
+                        is_reflection: data.is_reflection,
+                        reply_to: data.reply_to,
+                        reply_text: data.reply_text,
+                        full_prompt: data.full_prompt,
+                        full_response: data.full_response,
+                        phase: data.phase,  // 包含 phase 字段用于前端驱动阶段切换
+                        timestamp: data.timestamp
+                    });
+                    break;
+
+                case 'task_progress':
+                    updateTaskProgress(data.completed_objects, data.remaining_objects);
+                    break;
+
+                case 'complete':
+                    addSystemMessage(`✅ Task Complete`);
+                    break;
+
+                case 'system':
+                    addSystemMessage(`${data.message}`);
+                    // 如果收到重置领导者信号，清空领导者状态
+                    if (data.reset_leader) {
+                        state.leader = null;
+                        updateLeaderDisplay();
+                    }
+                    break;
+
+                case 'error':
+                    addSystemMessage(`❌ ${data.message}`);
+                    break;
+            }
+        }
+
+        // 更新领导者显示
+        function updateLeaderDisplay() {
+            // 重置所有机器人的领导者状态
+            document.querySelectorAll('.robot-card').forEach(card => {
+                card.classList.remove('leader');
+            });
+            
+            // 如果有领导者，高亮显示
+            if (state.leader) {
+                const leaderCard = document.querySelector(`.robot-card[data-robot="${state.leader}"]`);
+                if (leaderCard) {
+                    leaderCard.classList.add('leader');
+                }
+            }
+        }
+
+        // ==================== 模拟数据（演示用） ====================
+        function simulateDemo() {
+            // 初始化
+            initRobots();
+            updateTaskProgress([], ['Cup', 'Remote', 'Tableware']);
+            
+            // 模拟消息流
+            const demoMessages = [
+                { type: 'time', value: '10:23' },
+                { type: 'system', value: '🚀 开始任务: 将 "cup", "remote" 和 "tableware" 放入托盘。' },
+                { type: 'phase', value: 'self-description' },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: "Hello everyone! I'm Alice, a Mobile Manipulation Robot with a wheeled base and robotic arm. My atomic actions are: navigate, open, pick, place, move, communicate, and wait. I can navigate to objects, open containers, pick and place items, and perform fine-grained movements.",
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: "Hello! I'm Bob, a Manipulation Robot with a fixed arm. My atomic actions are: pick, place, communicate, and wait. I cannot navigate, so I rely on mobile teammates to bring objects to me. I specialize in precise placement and handling delicate items.",
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'David',
+                    thought: "Hello! I'm David, a Mobile Robot with a wheeled chassis. My atomic actions are: navigate, communicate, and wait. I cannot pick or place objects, so I focus on exploration and navigation support for the team.",
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: "Hello! I'm Lucy, a Drone Robot with aerial capabilities. My atomic actions are: navigate, pick, place, communicate, and wait. I can fly to hard-to-reach areas and perform aerial pick and place operations.",
+                    is_leader: false
+                },
+                { type: 'phase', value: 'task-allocation' },
+                // ========== Collaboration Plan ==========
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'David: explore the ground and report item locations;\nLucy: explore high or hard-to-reach areas from the air;\nAlice: search enclosed spaces and bring items to Bob;\nBob: place items at target position.',
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: 'Bob: assist with final placement and coordination;\nLucy: search from the air and retrieve the target;\nAlice: open hidden spaces when needed;\nDavid: explore environment and help locate the target object.',
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'David',
+                    thought: 'Bob: place them at target and support handling;\nDavid: explore the environment and report target locations;\nAlice: go to spots, open cabinets and deliver them to Bob;\nLucy: navigate from the air and retrieve target items.',
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: 'Bob: handle final placement at target location;\nDavid: explore the ground and share item locations;\nLucy: search high or hard-to-reach spots from air;\nAlice: go to enclosed areas, open cabinets and retrieve items.',
+                    is_leader: false
+                },
+                // ========== Campaign Speech ==========
+                { type: 'phase', value: 'leader-election' },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: "Hi team, I'm Bob, skilled in precise placement. Choose me as leader and I will coordinate the team efficiently to complete the task.",
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'David',
+                    thought: "Hi team, I'm David. I'll help find targets efficiently. I'll lead with clear planning and keep communication open throughout the task.",
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: "Hi team, I'm Lucy. I can lead and coordinate smoothly. I'll guide us with real-time updates and ensure we work together effectively.",
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: "Hi team, I'm Alice. I bring flexibility to the team. As leader, I'll ensure clear communication and coordination among all robots.",
+                    is_leader: false
+                },
+                // ========== Voting ==========
+                { type: 'phase', value: 'voting' },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: 'I vote for Alice.',
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'David',
+                    thought: 'I vote for Alice.',
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: 'I vote for Alice.',
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'I vote for Alice.',
+                    is_leader: true
+                },
+                // ========== Execution ==========
+                { type: 'phase', value: 'execution' },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'As the leader, I will start executing our plan. First, I will navigate to the coffee table to pick up the cup.',
+                    action: 'Navigate to coffee table',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'David',
+                    thought: "Environment exploration complete. Locations of coffee table, sofa, kitchen dining table, and tray confirmed. Paths are clear. Alice can proceed.",
+                    action: 'Environment exploration complete',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: "I have reached the coffee table. Now picking up the cup.",
+                    action: 'Pick(Cup)',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: 'Received. I am positioned at the tray, ready to receive items from Alice.',
+                    action: 'Standby at tray',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'Cup picked up. Now moving toward Bob for handoff.',
+                    action: 'Move to Bob',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: 'Aerial monitoring: Alice is moving toward Bob with the cup. Path is clear, no obstacles.',
+                    action: 'Aerial monitoring',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'Bob, handing over the cup.',
+                    action: 'Handover(Cup, Bob)',
+                    action_status: 'success'
+                },
+                { type: 'progress', completed: ['Cup'], remaining: ['Remote Control', 'Tableware'] },
+                // ========== Reflection (Step 5) ==========
+                { type: 'phase', value: 'reflection' },
+                { type: 'system', value: '🔄 反思触发: 定期反思间隔 (Δt=5)' },
+                { 
+                    type: 'message', 
+                    robot_id: 'David',
+                    thought: 'Let me analyze my progress so far.',
+                    summary: 'Successfully explored all three locations. Confirmed positions of coffee table, sofa, kitchen table, and tray. Paths are clear.',
+                    future_plan: 'Continue monitoring environment and assist with navigation if needed.',
+                    is_reflection: true,
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: 'Reviewing my aerial observations.',
+                    summary: 'Provided aerial monitoring throughout. Tracked Alice\'s movement to coffee table and confirmed path clear to Bob.',
+                    future_plan: 'Continue aerial monitoring and report any obstacles or new discoveries.',
+                    is_reflection: true,
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: 'Evaluating my precision placement performance.',
+                    summary: 'Successfully received cup from Alice and placed it in tray with precision. Gripper functioning optimally.',
+                    future_plan: 'Ready to receive remaining items (remote control, tableware) and place them in tray.',
+                    is_reflection: true,
+                    is_leader: false
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'Assessing my task execution progress.',
+                    summary: 'Successfully picked up cup from coffee table and handed to Bob. Communication and coordination working well.',
+                    future_plan: 'Collect remote control from sofa and tableware from kitchen table. Continue close coordination with Bob.',
+                    is_reflection: true,
+                    is_leader: true
+                },
+                { type: 'system', value: '📋 当前计划仍然是最优的，无需更新' },
+                { type: 'phase', value: 'execution' },
+                // ========== Continue Execution ==========
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: 'Cup received and precisely placed into the tray.',
+                    action: 'Place(Cup, Tray)',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'Great! Now returning to the sofa to collect the remote control.',
+                    action: 'Return to sofa',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Alice',
+                    thought: 'Remote control collected. Moving to kitchen dining table next.',
+                    action: 'Pick(Remote Control) → Move to kitchen',
+                    action_status: 'success'
+                },
+                { 
+                    type: 'message', 
+                    robot_id: 'Bob',
+                    thought: 'Received remote control and tableware, placed into tray.',
+                    action: 'Place(Remote Control & Tableware, Tray)',
+                    action_status: 'success'
+                },
+                { type: 'progress', completed: ['Cup', 'Remote Control', 'Tableware'], remaining: [] },
+                { 
+                    type: 'message', 
+                    robot_id: 'Lucy',
+                    thought: 'All items successfully placed into the tray. Collaborative task completed successfully!',
+                    action: 'Monitoring complete',
+                    action_status: 'success'
+                }
+            ];
+
+            let index = 0;
+            function nextMessage() {
+                if (index >= demoMessages.length) {
+                    addSystemMessage('✅ Demo Complete');
+                    addSystemMessage('═══ Task Complete, Leader Status Reset ═══');
+                    state.leader = null;
+                    updateLeaderDisplay();
+                    return;
+                }
+
+                const msg = demoMessages[index++];
+                
+                switch (msg.type) {
+                    case 'time':
+                        addTimeDivider(msg.value);
+                        break;
+                    case 'system':
+                        addSystemMessage(msg.value);
+                        break;
+                    case 'phase':
+                        setPhase(msg.value);
+                        break;
+                    case 'progress':
+                        updateTaskProgress(msg.completed, msg.remaining);
+                        break;
+                    case 'message':
+                        messageQueue.add({
+                            robot_id: msg.robot_id,
+                            thought: msg.thought,
+                            summary: msg.summary,
+                            future_plan: msg.future_plan,
+                            action: msg.action,
+                            action_status: msg.action_status,
+                            is_leader: msg.is_leader,
+                            is_reflection: msg.is_reflection,
+                            reply_to: msg.reply_to,
+                            reply_text: msg.reply_text
+                        });
+                        break;
+                }
+
+                if (state.isPlaying) {
+                    setTimeout(nextMessage, 2000 / state.playbackSpeed);
+                }
+            }
+
+            // 开始演示
+            setTimeout(nextMessage, 500);
+        }
+
+        // 演示按钮事件
+        elements.demoBtn.addEventListener('click', async () => {
+            // 清空消息区域
+            elements.messagesContainer.innerHTML = '';
+            state.messages = [];
+            state.leader = null;
+            
+            // 重置阶段显示
+            document.querySelectorAll('.phase-step').forEach(step => {
+                step.classList.remove('active', 'completed');
+            });
+            
+            // 重置机器人状态
+            initRobots();
+            updateTaskProgress([], ['苹果', '书', '叉子', '杯子', '笔']);
+            
+            // 加载场景A
+            try {
+                addSystemMessage('🎬 正在加载场景A...');
+                await selectScene('scene_a');
+                addSystemMessage('✅ 场景A加载完成');
+            } catch (error) {
+                console.error('Failed to load scene A:', error);
+                addSystemMessage('⚠️ 场景A加载失败，使用默认场景');
+            }
+            
+            // 运行演示
+            simulateDemo();
+        });
+
+        // ==================== API Key 管理 ====================
+        const DEFAULT_API_KEY = 'sk-rAQNTDMX4PFx9SJcAynWtnNSALDtLlAwIk7LzRnpNaGjqKEM';
+        const STORAGE_KEY = 'dynahmrc_api_key';
+        
+        // 加载保存的API密钥
+        function loadSavedApiKey() {
+            try {
+                const savedKey = localStorage.getItem(STORAGE_KEY);
+                if (savedKey) {
+                    elements.apiKeyInput.value = savedKey;
+                    console.log('[API] 已从本地存储加载API密钥');
+                }
+            } catch (e) {
+                console.warn('[API] 无法从localStorage加载API密钥:', e);
+            }
+        }
+        
+        // 保存API密钥到本地存储
+        function saveApiKeyToStorage() {
+            try {
+                const apiKey = elements.apiKeyInput.value.trim();
+                if (apiKey) {
+                    localStorage.setItem(STORAGE_KEY, apiKey);
+                    console.log('[API] API密钥已保存到本地存储');
+                } else {
+                    localStorage.removeItem(STORAGE_KEY);
+                    console.log('[API] API密钥已从本地存储移除');
+                }
+            } catch (e) {
+                console.warn('[API] 无法保存API密钥到localStorage:', e);
+            }
+        }
+        
+        // 使用默认密钥
+        elements.useDefaultKeyBtn.addEventListener('click', () => {
+            elements.apiKeyInput.value = DEFAULT_API_KEY;
+            showNotification('已填充默认API密钥', 'success');
+            // 自动取消Mock模式
+            if (elements.useMockCheckbox.checked) {
+                elements.useMockCheckbox.checked = false;
+                elements.apiKeyInput.disabled = false;
+                elements.apiStatus.className = 'api-status kimi';
+                elements.apiStatus.innerHTML = '<span>🔵</span> 将使用 Kimi API';
+            }
+            // 保存到本地存储
+            saveApiKeyToStorage();
+        });
+        
+        // 清除密钥
+        elements.clearKeyBtn.addEventListener('click', () => {
+            elements.apiKeyInput.value = '';
+            localStorage.removeItem(STORAGE_KEY);
+            showNotification('API密钥已清除', 'info');
+        });
+        
+        // API密钥输入变化时自动保存
+        elements.apiKeyInput.addEventListener('blur', () => {
+            saveApiKeyToStorage();
+        });
+        
+        // 在initAPI之前保存密钥
+        const originalInitAPI = initAPI;
+        initAPI = async function() {
+            saveApiKeyToStorage();
+            return await originalInitAPI();
+        };
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initRobots();
+            updateTaskProgress([], []);
+            
+            // 更新连接状态
+            elements.statusIndicator.className = 'status-indicator connected';
+            elements.statusIndicator.querySelector('.status-icon').textContent = '✓';
+            elements.statusIndicator.querySelector('.status-text').textContent = '已连接';
+            
+            // 加载保存的API密钥 - 初始状态下不自动填充，只有点击"使用默认密钥"后才填入
+            // loadSavedApiKey();
+            
+            // 加载场景列表
+            loadScenes();
+            
+            // 初始化API配置（在加载保存的密钥之后）
+            initAPI();
+            
+            // 不再自动启动演示，等待用户点击演示按钮
+        });
+
+        // ==================== 场景管理 ====================
+        let currentScene = null;
+        const sceneSelect = document.getElementById('scene-select');
+        const sceneInfoBtn = document.getElementById('scene-info-btn');
+        const currentSceneInfo = document.getElementById('current-scene-info');
+
+        // 加载场景列表
+        async function loadScenes() {
+            try {
+                const response = await fetch('/api/scenes');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 填充场景选择器
+                    data.scenes.forEach(scene => {
+                        const option = document.createElement('option');
+                        option.value = scene.name;
+                        option.textContent = getSceneDisplayName(scene.name);
+                        sceneSelect.appendChild(option);
+                    });
+                    
+                    // 默认选择第一个场景
+                    if (data.scenes.length > 0) {
+                        sceneSelect.value = data.scenes[0].name;
+                        selectScene(data.scenes[0].name);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load scenes:', error);
+            }
+        }
+
+        // 获取场景显示名称
+        function getSceneDisplayName(sceneName) {
+            const names = {
+                // 客厅 + 浴室 组合
+                'scene_a': '🛋️🍳🚿 场景A',
+                'scene_b': '🛋️🍳🚿 场景B',
+                'scene_c': '🛋️🍳🚿 场景C'
+            };
+            return names[sceneName] || sceneName;
+        }
+
+        // 选择场景
+        async function selectScene(sceneName) {
+            if (!sceneName) return;
+            
+            try {
+                const response = await fetch(`/api/scene/${sceneName}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentScene = data.scene;
+                    updateSceneInfo();
+                }
+            } catch (error) {
+                console.error('Failed to load scene:', error);
+            }
+        }
+
+        // 更新场景信息显示
+        function updateSceneInfo() {
+            if (!currentScene) return;
+            
+            const visibleCount = currentScene.visible_objects.length;
+            const hiddenCount = currentScene.hidden_objects.length;
+            const furnitureCount = currentScene.furniture.length;
+            
+            // 统计各区域家具数量
+            let kitchenCount = 0, livingRoomCount = 0, bathroomCount = 0;
+            currentScene.furniture.forEach(furn => {
+                const zone = getFurnitureZone(furn.name);
+                if (zone.order === 1) kitchenCount++;
+                else if (zone.order === 2) livingRoomCount++;
+                else if (zone.order === 3) bathroomCount++;
+            });
+            
+            currentSceneInfo.innerHTML = `
+                📍 <strong>${currentScene.description}</strong><br>
+                🏠 家具: ${furnitureCount} | 🍳 ${kitchenCount} 🛋️ ${livingRoomCount} 🚿 ${bathroomCount} | 👁️ ${visibleCount} | 📦 ${hiddenCount}
+            `;
+            currentSceneInfo.style.display = 'block';
+        }
+
+        // 场景选择变化事件
+        sceneSelect.addEventListener('change', (e) => {
+            selectScene(e.target.value);
+        });
+
+        // 场景详情按钮点击事件
+        sceneInfoBtn.addEventListener('click', () => {
+            if (currentScene) {
+                showSceneDetails(currentScene);
+            } else {
+                showNotification('请先选择一个场景', 'warning');
+            }
+        });
+
+        // 物品名称中文化
+        function getItemDisplayName(itemName) {
+            const itemNames = {
+                // 通用物品
+                'tray': '📦 托盘',
+                // 厨房物品
+                'bowl': '🥣 碗', 'plate': '🍽️ 盘子', 'fork': '🍴 叉子', 'knife': '🔪 刀', 'spoon': '🥄 勺子',
+                'cup': '☕ 杯子', 'apple': '🍎 苹果', 'cheese': '🧀 奶酪', 'tomato': '🍅 西红柿',
+                'lettuce': '🥬 生菜', 'meat': '🥩 肉', 'bread': '🍞 面包', 'cutting_board': '🔪 砧板',
+                'spice': '🧂 香料', 'oil': '🛢️ 油', 'napkin': '🧻 餐巾', 'chopsticks': '🥢 筷子',
+                'utensil': '🍴 餐具', 'foil': '🥡 铝箔', 'wrap': '📦 保鲜膜', 'milk': '🥛 牛奶', 'egg': '🥚 鸡蛋',
+                // 客厅物品
+                'remote': '📱 遥控器', 'magazine': '📰 杂志', 'keys': '🔑 钥匙', 'book': '📖 书',
+                'decoration': '🎨 装饰品', 'photo_frame': '🖼️ 相框', 'toy': '🧸 玩具', 'puzzle': '🧩 拼图',
+                'game': '🎮 游戏', 'pillow': '🛏️ 靠枕', 'blanket': '🛏️ 毯子', 'phone': '📱 手机',
+                'dvd': '💿 DVD', 'cable': '🔌 线缆', 'manual': '📘 说明书', 'lamp': '💡 台灯',
+                'coaster': '🍺 杯垫', 'snack': '🍿 零食',
+                // 浴室物品
+                'toothbrush': '🪥 牙刷', 'soap': '🧼 肥皂', 'towel': '🧺 毛巾',
+                'shampoo': '🧴 洗发水', 'toothpaste': '🪥 牙膏', 'perfume': '🌸 香水',
+                'lotion': '🧴 乳液', 'washbasin': '🚰 洗手台', 'bathroom_cabinet': '🚪 浴室柜',
+                // 实验室物品
+                'beaker': '🧪 烧杯', 'test_tube': '🧪 试管', 'microscope_slide': '🔬 载玻片',
+                'petri_dish': '🧫 培养皿', 'pipette': '💧 移液器', 'sample_box': '📦 样本盒',
+                'chemical': '⚗️ 化学品', 'reagent': '🧪 试剂', 'solution': '💧 溶液', 'buffer': '⚗️ 缓冲液',
+                'scale': '⚖️ 天平', 'thermometer': '🌡️ 温度计', 'timer': '⏱️ 计时器',
+                'sensor': '📡 传感器', 'probe': '📡 探针', 'calibrator': '⚙️ 校准器',
+                'first_aid': '🚑 急救包', 'fire_extinguisher': '🧯 灭火器', 'emergency_manual': '📋 应急手册'
+            };
+            return itemNames[itemName] || itemName;
+        }
+
+        // 获取家具所属区域
+        function getFurnitureZone(name) {
+            const kitchenItems = ['kitchen_table', 'refrigerator', 'kitchen_cabinet', 'countertop'];
+            const livingRoomItems = ['coffee_table', 'sofa', 'tv_cabinet', 'bookshelf', 'side_table'];
+            const bathroomItems = ['washbasin', 'bathroom_cabinet', 'shelf'];
+            
+            if (kitchenItems.includes(name)) return { name: '🍳 厨房', icon: '🍳', order: 1 };
+            if (livingRoomItems.includes(name)) return { name: '🛋️ 客厅', icon: '🛋️', order: 2 };
+            if (bathroomItems.includes(name)) return { name: '🚿 浴室', icon: '🚿', order: 3 };
+            return { name: '📦 其他', icon: '📦', order: 4 };
+        }
+
+        // 显示场景详情弹窗
+        function showSceneDetails(scene) {
+            const modal = document.createElement('div');
+            modal.className = 'example-modal';
+            modal.style.display = 'flex';
+            
+            // 按区域分组家具
+            const zones = { '🍳 厨房': [], '🛋️ 客厅': [], '🚿 浴室': [], '📦 其他': [] };
+            scene.furniture.forEach(furn => {
+                const zone = getFurnitureZone(furn.name);
+                zones[zone.name].push(furn);
+            });
+            
+            // 生成区域家具HTML
+            let furnitureHtml = '';
+            const zoneOrder = ['🍳 厨房', '🛋️ 客厅', '🚿 浴室', '📦 其他'];
+            
+            zoneOrder.forEach(zoneName => {
+                const furnList = zones[zoneName];
+                if (furnList.length === 0) return;
+                
+                furnitureHtml += `<h5 style="margin: 15px 0 10px; color: var(--accent-primary);">${zoneName}</h5>`;
+                
+                furnList.forEach(furn => {
+                    const items = furn.surface_items.length > 0 
+                        ? furn.surface_items.map(item => getItemDisplayName(item)).join(', ') 
+                        : '(无)';
+                    const hidden = furn.state === 'close' && furn.contents.length > 0
+                        ? `<span style="color: #f87171;">🔒 内含: ${furn.contents.map(item => getItemDisplayName(item)).join(', ')}</span>`
+                        : '';
+                    const stateIcon = furn.state === 'close' ? '🔒' : '🔓';
+                    
+                    furnitureHtml += `
+                        <div style="background: rgba(30, 41, 59, 0.5); padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${getFurnitureDisplayName(furn.name)}</strong>
+                                <span style="font-size: 0.8em;">${stateIcon} ${furn.state === 'close' ? '关闭' : '打开'}</span>
+                            </div>
+                            <div style="font-size: 0.9em; color: var(--text-secondary); margin-top: 4px;">
+                                📍 位置: [${furn.position.join(', ')}] | 🎯 导航点: [${furn.stand_pose.join(', ')}]
+                            </div>
+                            <div style="font-size: 0.85em; margin-top: 4px;">
+                                👁️ 表面物品: ${items}
+                                ${hidden ? `<br>${hidden}` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+            });
+            
+            modal.innerHTML = `
+                <div class="example-modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+                    <div class="example-modal-header">
+                        <h3>🏠 ${getSceneDisplayName(scene.name)} - 场景详情</h3>
+                        <button class="example-modal-close">&times;</button>
+                    </div>
+                    <div class="example-modal-body">
+                        <p style="color: var(--text-secondary); margin-bottom: 15px;">${scene.description}</p>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; text-align: center;">
+                            <div style="background: rgba(78, 205, 196, 0.1); padding: 10px; border-radius: 8px;">
+                                <div style="font-size: 1.5em;">🏠</div>
+                                <div style="font-size: 0.9em;">${scene.furniture.length} 个家具</div>
+                            </div>
+                            <div style="background: rgba(74, 222, 128, 0.1); padding: 10px; border-radius: 8px;">
+                                <div style="font-size: 1.5em;">👁️</div>
+                                <div style="font-size: 0.9em;">${scene.visible_objects.length} 个可见物品</div>
+                            </div>
+                            <div style="background: rgba(248, 113, 113, 0.1); padding: 10px; border-radius: 8px;">
+                                <div style="font-size: 1.5em;">📦</div>
+                                <div style="font-size: 0.9em;">${scene.hidden_objects.length} 个隐藏物品</div>
+                            </div>
+                            <div style="background: rgba(251, 191, 36, 0.1); padding: 10px; border-radius: 8px;">
+                                <div style="font-size: 1.5em;">🚪</div>
+                                <div style="font-size: 0.9em;">3 个房间</div>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-bottom: 10px;">📋 家具列表 (按区域)</h4>
+                        ${furnitureHtml}
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            modal.querySelector('.example-modal-close').addEventListener('click', () => {
+                modal.remove();
+            });
+            
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.remove();
+            });
+        }
+
+        // 获取家具显示名称
+        function getFurnitureDisplayName(name) {
+            const names = {
+                // 厨房家具
+                'kitchen_table': '🍽️ 餐桌',
+                'refrigerator': '❄️ 冰箱',
+                'kitchen_cabinet': '🗄️ 橱柜',
+                'countertop': '🔪 操作台',
+                // 客厅家具
+                'coffee_table': '☕ 茶几',
+                'bookshelf': '📚 书架',
+                'sofa': '🛋️ 沙发',
+                'tv_cabinet': '📺 电视柜',
+                // 浴室家具
+                'washbasin': '🚰 洗手台',
+                'bathroom_cabinet': '🚪 浴室柜',
+                'shelf': '📦 置物架'
+            };
+            return names[name] || name;
+        }
+
+        // ==================== 任务分析功能 ====================
+        
+        // 分析按钮点击事件
+        document.getElementById('analyze-btn').addEventListener('click', async () => {
+            const task = elements.chatInput.value.trim();
+            if (!task) {
+                showNotification('请输入任务指令', 'warning');
+                return;
+            }
+            
+            await analyzeTask(task);
+        });
+        
+        // 分析任务函数
+        async function analyzeTask(task) {
+            const panel = document.getElementById('task-analysis-panel');
+            const content = document.getElementById('analysis-content');
+            
+            // 显示面板并显示加载状态
+            panel.style.display = 'block';
+            content.innerHTML = '<div class="analysis-loading">正在分析任务复杂度...</div>';
+            
+            try {
+                const response = await fetch('/api/analyze_task', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ task })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayAnalysisResult(data);
+                } else {
+                    content.innerHTML = `<div style="color: var(--error);">分析失败: ${data.error}</div>`;
+                }
+            } catch (error) {
+                content.innerHTML = `<div style="color: var(--error);">分析失败: ${error.message}</div>`;
+            }
+        }
+        
+        // 显示分析结果
+        function displayAnalysisResult(data) {
+            const content = document.getElementById('analysis-content');
+            
+            const complexityClass = data.complexity === 'simple' ? 'complexity-simple' :
+                                   data.complexity === 'moderate' ? 'complexity-moderate' :
+                                   data.complexity === 'complex' ? 'complexity-complex' : 'complexity-very';
+            
+            const collabClass = data.collaboration_needed ? 'collaboration-yes' : 'collaboration-no';
+            const collabText = data.collaboration_needed ? '✅ 需要' : '❌ 不需要';
+            
+            // 任务类型颜色
+            const typeColors = {
+                'pack_object': '#4ecdc4',
+                'sort_solid': '#95e1d3',
+                'make_sandwich': '#ff6b9d',
+                'unknown': '#9ca3af'
+            };
+            const typeColor = typeColors[data.task_type] || '#9ca3af';
+            
+            let html = `
+                <p><strong>📋 任务类型:</strong> <span style="color: ${typeColor}; font-weight: 600;">${data.task_type_label}</span></p>
+                <p><strong>任务:</strong> ${data.task}</p>
+                <p><strong>复杂度:</strong> <span class="${complexityClass}">${data.complexity_label}</span> <span style="color: var(--text-secondary); font-size: 0.9em;">(D=${data.D_value})</span></p>
+                <p><strong>多机器人协作:</strong> <span class="${collabClass}">${collabText}</span></p>
+            `;
+
+            // DynaHMRC 三因子详情
+            if (data.D_value !== undefined) {
+                html += `<p style="font-size: 0.85em; color: var(--text-secondary); margin-left: 10px;">`;
+                html += `📊 L(位置)=${data.location_factor} | N(数量)=${data.quantity_factor} | Y(协作)=${data.collaboration_factor}`;
+                html += `</p>`;
+            }
+
+            // 动态复杂度因子
+            if (data.dynamic_complexity && data.dynamic_complexity.length > 0) {
+                const factorLabels = {
+                    'CTO': '目标变更',
+                    'IRZ': '禁区引入',
+                    'ANC': '新成员加入',
+                    'REC': '成员移除'
+                };
+                const factors = data.dynamic_complexity.map(f => factorLabels[f] || f).join(', ');
+                html += `<p style="color: #f87171; font-size: 0.85em;">⚠️ 动态复杂度: ${factors}</p>`;
+            }
+
+            if (data.required_capabilities && data.required_capabilities.length > 0) {
+                html += `<p><strong>需要能力:</strong> ${data.required_capabilities.join(', ')}</p>`;
+            }
+
+            html += `<p><strong>估计步骤:</strong> ${data.estimated_steps} 步</p>`;
+
+            if (data.subtasks && data.subtasks.length > 1) {
+                html += `<p><strong>子任务分解:</strong></p><ul class="subtasks">`;
+                data.subtasks.slice(0, 5).forEach((subtask, i) => {
+                    const typeLabels = {
+                        'pick_and_place': '拾取放置',
+                        'sort': '分类',
+                        'assemble': '组装'
+                    };
+                    const typeLabel = typeLabels[subtask.type] || subtask.type;
+                    html += `<li>${typeLabel}: ${subtask.target}</li>`;
+                });
+                if (data.subtasks.length > 5) {
+                    html += `<li>... 还有 ${data.subtasks.length - 5} 个子任务</li>`;
+                }
+                html += `</ul>`;
+            }
+
+            html += `<p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.85em;"><strong>💡 分析:</strong> ${data.reasoning}</p>`;
+            
+            content.innerHTML = html;
+        }
+        
+        // Close analysis panel
+        document.getElementById('analysis-close').addEventListener('click', () => {
+            document.getElementById('task-analysis-panel').style.display = 'none';
+        });
+        
+        // ==================== 示例任务弹窗 ====================
+        
+        // 三种基础任务类型示例
+        const taskExamples = {
+            pack_object: {
+                name: '📦 装箱任务',
+                description: '拾取放置：将物品拾取并放入指定的托盘/容器',
+                details: '评估多机器人在拾取放置任务上的协作能力。系统中包含固定机械臂和移动机器人，通过四阶段模型实现自主任务分配与协调。',
+                color: '#4ecdc4',
+                tasks: [
+                    { task: "装箱：Put \"cup\" and \"toothbrush\" into tray.", level: "simple", label: "⭐ 简单" },
+                    { task: "装箱：Put \"cup\", \"remote\" and \"tableware\" into tray.", level: "moderate", label: "⭐⭐ 中等" },
+                    { task: "装箱：Put \"cup\", \"tableware\", \"toiletry\" and \"book\" into tray.", level: "complex", label: "⭐⭐⭐ 复杂" },
+                    { task: "装箱：Put \"cup\", \"tableware\", \"toiletry\", \"book\" and \"fruit\" into tray.", level: "very_complex", label: "⭐⭐⭐⭐ 极复杂" }
+                ]
+            },
+            sort_solid: {
+                name: '🎨 分类任务',
+                description: '分类：按类别将物品分类并放置到指定区域',
+                details: '评估多机器人在分类任务上的协作能力。系统中包含固定机械臂和移动机器人，通过四阶段模型实现自主任务分配与协调。',
+                color: '#95e1d3',
+                tasks: [
+                    { task: "分类：Sort \"tableware\" and \"cup\" into different trays by category.", level: "simple", label: "⭐ 简单" },
+                    { task: "分类：Sort \"tableware\", \"cup\", \"fruit\" and \"remote\" into corresponding trays by category.", level: "moderate", label: "⭐⭐ 中等" },
+                    { task: "分类：Sort \"tableware\", \"book\", \"toiletry\" and \"cup\" into corresponding trays and cabinets by category.", level: "complex", label: "⭐⭐⭐ 复杂" },
+                    { task: "分类：Sort \"cup\", \"tableware\", \"book\", \"toiletry\", \"fruit\" and \"remote\" into designated storage locations by category.", level: "very_complex", label: "⭐⭐⭐⭐ 极复杂" }
+                ]
+            },
+            make_sandwich: {
+                name: '🥪 堆叠任务',
+                description: '顺序堆叠：按顺序堆叠食材（从下到上）',
+                details: '评估多机器人在顺序堆叠任务上的协作能力。系统中包含固定机械臂和移动机器人，通过四阶段模型实现自主任务分配与协调。',
+                color: '#ff6b9d',
+                tasks: [
+                    { task: "制作三明治：Stack \"bread\" and \"cheese\" onto the tray in order.", level: "simple", label: "⭐ 简单" },
+                    { task: "制作三明治：Stack \"bread\", \"lettuce\" and \"cheese\" into sandwich on the countertop.", level: "moderate", label: "⭐⭐ 中等" },
+                    { task: "制作三明治：Stack \"bread\", \"lettuce\", \"tomato\", \"patty\" and \"cheese\" into hamburger on the countertop.", level: "complex", label: "⭐⭐⭐ 复杂" },
+                    { task: "制作三明治：Build multi-layer sandwich tower with \"bread\", \"lettuce\", \"tomato\", \"patty\", \"cheese\", \"egg\" and \"cucumber\".", level: "very_complex", label: "⭐⭐⭐⭐ 极复杂" }
+                ]
+            }
+        };
+        
+        // 创建示例任务弹窗
+        function createExampleModal() {
+            const modal = document.createElement('div');
+            modal.className = 'example-modal';
+            modal.id = 'example-modal';
+            
+            let html = `
+                <div class="example-modal-content">
+                    <div class="example-modal-header">
+                        <h3 class="example-modal-title">📋 示例任务</h3>
+                        <button class="example-modal-close" id="example-modal-close">×</button>
+                    </div>
+            `;
+            
+            Object.entries(taskExamples).forEach(([key, category]) => {
+                html += `
+                    <div class="example-category">
+                        <div class="example-category-title" style="color: ${category.color}; border-color: ${category.color}40;">
+                            ${category.name} - ${category.description}
+                        </div>
+                        <div class="example-category-details" style="color: #8b8b9a; font-size: 0.85em; margin: 8px 0 12px 0; line-height: 1.5;">
+                            ${category.details}
+                        </div>
+                `;
+                
+                category.tasks.forEach(item => {
+                    const badgeClass = `badge-${item.level}`;
+                    const taskType = key === 'pack_object' ? '📦' : key === 'sort_solid' ? '🎨' : '🥪';
+                    // 对任务中的双引号进行HTML转义，避免破坏data-task属性
+                    const escapedTask = item.task.replace(/"/g, '&quot;');
+                    html += `
+                        <div class="example-task-item" data-task="${escapedTask}" data-type="${key}">
+                            ${taskType} ${item.task}
+                            <span class="complexity-badge ${badgeClass}">${item.label}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            });
+            
+            html += `</div></div>`;
+            modal.innerHTML = html;
+            document.body.appendChild(modal);
+            
+            // 关闭按钮事件
+            document.getElementById('example-modal-close').addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
+            
+            // 点击外部关闭
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+            
+            // 点击任务项
+            modal.querySelectorAll('.example-task-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const task = item.getAttribute('data-task');
+                    elements.chatInput.value = task;
+                    modal.classList.remove('active');
+                    // 自动分析
+                    analyzeTask(task);
+                });
+            });
+        }
+        
+        // 初始化示例任务弹窗
+        createExampleModal();
+        
+        // 示例任务按钮事件
+        document.getElementById('example-tasks-btn').addEventListener('click', () => {
+            document.getElementById('example-modal').classList.add('active');
+        });
+        
+        // 通知函数
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 8px;
+                background: ${type === 'warning' ? 'rgba(251, 191, 36, 0.9)' : 'rgba(78, 205, 196, 0.9)'};
+                color: #000;
+                font-weight: 500;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // 添加动画样式
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

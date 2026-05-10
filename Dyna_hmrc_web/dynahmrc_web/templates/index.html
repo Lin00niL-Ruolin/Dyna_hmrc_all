@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynaHMRC - 异构多机器人协作系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #eaeaea;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid #0f3460;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 25px;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .panel h2 {
+            color: #e94560;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel h2::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #e94560;
+            border-radius: 2px;
+        }
+
+        /* 配置面板 */
+        .config-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0b0b0;
+            font-size: 0.9em;
+        }
+
+        input[type="text"], input[type="password"], select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #0f3460;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #e94560;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: #0f3460;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #e94560;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: 0.3s;
+        }
+
+        .toggle-switch.active::after {
+            left: 26px;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #0f3460;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #1a4a7a;
+        }
+
+        /* 机器人状态面板 */
+        .robot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .robot-card {
+            background: rgba(15, 52, 96, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .robot-card.active {
+            border-color: #00d9ff;
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+        }
+
+        .robot-card.busy {
+            border-color: #ffd700;
+        }
+
+        .robot-card.error {
+            border-color: #ff4444;
+        }
+
+        .robot-id {
+            font-weight: bold;
+            color: #00d9ff;
+            margin-bottom: 8px;
+        }
+
+        .robot-type {
+            font-size: 0.85em;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .robot-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff88;
+        }
+
+        .status-dot.busy {
+            background: #ffd700;
+        }
+
+        .status-dot.error {
+            background: #ff4444;
+        }
+
+        .capabilities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .cap-tag {
+            background: rgba(233, 69, 96, 0.2);
+            color: #ff6b6b;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+        }
+
+        /* 输出控制台 */
+        .console {
+            background: #0a0a0a;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+
+        .console-line {
+            margin-bottom: 8px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .timestamp {
+            color: #666;
+            margin-right: 10px;
+        }
+
+        .log-phase {
+            color: #00d9ff;
+            font-weight: bold;
+        }
+
+        .log-thinking {
+            color: #ffd700;
+            font-style: italic;
+        }
+
+        .log-task {
+            color: #00ff88;
+        }
+
+        .log-error {
+            color: #ff4444;
+        }
+
+        .log-info {
+            color: #aaa;
+        }
+
+        .log-token {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        /* 进度条 */
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            transition: width 0.3s;
+            border-radius: 2px;
+        }
+
+        /* 流式文本显示区 */
+        .stream-display {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #0f3460;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.8;
+        }
+
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: #e94560;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* 统计信息 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(15, 52, 96, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #e94560;
+        }
+
+        .stat-label {
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        /* 滚动条美化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #0f3460;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #e94560;
+        }
+
+        /* 加载动画 */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* 响应式 */
+        @media (max-width: 600px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🤖 DynaHMRC</h1>
+            <p class="subtitle">基于大语言模型的异构多机器人动态协作系统</p>
+        </header>
+
+        <!-- 配置面板 -->
+        <div class="main-grid">
+            <div class="panel">
+                <h2>系统配置</h2>
+                
+                <div class="config-group">
+                    <div class="toggle-group">
+                        <div class="toggle-switch active" id="mockToggle" onclick="toggleMock()"></div>
+                        <label>使用 Mock 模式（无需 API Key）</label>
+                    </div>
+                </div>
+
+                <div class="config-group" id="apiKeyGroup" style="display: none;">
+                    <label>Kimi API Key</label>
+                    <input type="password" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxx">
+                </div>
+
+                <div class="config-group">
+                    <label>选择模型</label>
+                    <select id="modelSelect">
+                        <option value="kimi-k2.5">kimi-k2.5 (推荐)</option>
+                        <option value="kimi-k2">kimi-k2-0711-preview</option>
+                        <option value="kimi-128k">moonshot-v1-128k</option>
+                        <option value="kimi-32k">moonshot-v1-32k</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-secondary" onclick="initSystem()">
+                    <span>🚀</span> 初始化系统
+                </button>
+            </div>
+
+            <!-- 机器人状态 -->
+            <div class="panel">
+                <h2>机器人状态</h2>
+                <div class="robot-grid" id="robotGrid">
+                    <div class="robot-card">
+                        <div class="robot-id">等待初始化...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 任务执行面板 -->
+        <div class="main-grid">
+            <div class="panel">
+                <h2>任务执行</h2>
+                
+                <div class="config-group">
+                    <label>任务描述</label>
+                    <textarea id="taskInput" placeholder="例如：将厨房桌子上的红色杯子移动到洗碗机中，需要两个机器人协作完成...">协作搬运厨房桌子上的重物到储物柜</textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-primary" onclick="executeTask()" id="executeBtn">
+                        <span>▶️</span> 执行任务
+                    </button>
+                    <button class="btn btn-secondary" onclick="executeWithStream()" id="streamBtn">
+                        <span>📡</span> 流式执行
+                    </button>
+                </div>
+
+                <!-- 流式输出显示区 -->
+                <div class="config-group">
+                    <label>实时输出（流式）</label>
+                    <div class="stream-display" id="streamOutput">
+                        <span style="color: #666;">等待任务执行...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对话面板 -->
+            <div class="panel">
+                <h2>与 Kimi 对话</h2>
+                
+                <div class="config-group">
+                    <label>输入消息</label>
+                    <textarea id="chatInput" placeholder="询问机器人协作策略、任务规划建议...">如何优化多机器人协作的效率？</textarea>
+                </div>
+
+                <button class="btn btn-primary" onclick="chatWithStream()" id="chatBtn">
+                    <span>💬</span> 发送并流式接收
+                </button>
+
+                <div class="config-group" style="margin-top: 15px;">
+                    <label>Kimi 回复（流式）</label>
+                    <div class="stream-display" id="chatOutput">
+                        <span style="color: #666;">等待对话...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 执行日志 -->
+        <div class="panel" style="margin-top: 25px;">
+            <h2>执行日志</h2>
+            <div class="console" id="console">
+                <div class="console-line">
+                    <span class="timestamp">[系统]</span>
+                    <span class="log-info">等待初始化...</span>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="statTasks">0</div>
+                    <div class="stat-label">完成任务</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statTime">0s</div>
+                    <div class="stat-label">执行时间</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statReplan">0</div>
+                    <div class="stat-label">重规划次数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statRobots">0</div>
+                    <div class="stat-label">活跃机器人</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        let isMockMode = true;
+        let isInitialized = false;
+        let eventSource = null;
+
+        // 切换 Mock 模式
+        function toggleMock() {
+            isMockMode = !isMockMode;
+            document.getElementById('mockToggle').classList.toggle('active');
+            document.getElementById('apiKeyGroup').style.display = isMockMode ? 'none' : 'block';
+            log('系统', `切换到 ${isMockMode ? 'Mock' : 'Kimi API'} 模式`, 'info');
+        }
+
+        // 添加日志
+        function log(phase, message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const typeClass = `log-${type}`;
+            
+            const line = document.createElement('div');
+            line.className = 'console-line';
+            line.innerHTML = `
+                <span class="timestamp">[${timestamp}]</span>
+                <span class="${typeClass}">[${phase}]</span>
+                <span class="log-${type}">${message}</span>
+            `;
+            
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // 初始化系统
+        async function initSystem() {
+            const btn = document.querySelector('button[onclick="initSystem()"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> 初始化中...';
+
+            try {
+                const response = await fetch('/api/init', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        use_mock: isMockMode,
+                        api_key: document.getElementById('apiKey').value || null
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    isInitialized = true;
+                    log('初始化', `成功！LLM: ${data.llm_type}, 机器人: ${data.robots.join(', ')}`, 'task');
+                    updateRobotStatus();
+                    document.getElementById('statRobots').textContent = data.robots.length;
+                } else {
+                    log('初始化', `失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                log('初始化', `错误: ${error.message}`, 'error');
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀</span> 初始化系统';
+        }
+
+        // 更新机器人状态
+        async function updateRobotStatus() {
+            try {
+                const response = await fetch('/api/robots');
+                const data = await response.json();
+                
+                const grid = document.getElementById('robotGrid');
+                grid.innerHTML = data.robots.map(robot => `
+                    <div class="robot-card ${robot.is_busy ? 'busy' : 'active'}">
+                        <div class="robot-id">${robot.id}</div>
+                        <div class="robot-type">${robot.type}</div>
+                        <div class="robot-status">
+                            <span class="status-dot ${robot.is_busy ? 'busy' : ''}"></span>
+                            <span>${robot.is_busy ? '执行中' : '空闲'}</span>
+                        </div>
+                        ${robot.current_task ? `<div style="font-size: 0.8em; color: #ffd700; margin-top: 5px;">任务: ${robot.current_task}</div>` : ''}
+                        <div class="capabilities">
+                            ${robot.capabilities.map(c => `<span class="cap-tag">${c}</span>`).join('')}
+                        </div>
+                        <div style="margin-top: 8px; font-size: 0.8em; color: #666;">
+                            电量: ${robot.battery}%
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('获取机器人状态失败:', error);
+            }
+        }
+
+        // 普通执行任务
+        async function executeTask() {
+            if (!isInitialized) {
+                alert('请先初始化系统');
+                return;
+            }
+
+            const task = document.getElementById('taskInput').value;
+            const btn = document.getElementById('executeBtn');
+            
+            btn.disabled = true;
+            log('执行', `开始任务: ${task}`, 'phase');
+
+            try {
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({task: task})
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    log('完成', data.message, 'task');
+                    document.getElementById('statTasks').textContent = data.completed_tasks.length;
+                    document.getElementById('statTime').textContent = data.execution_time.toFixed(1) + 's';
+                    document.getElementById('statReplan').textContent = data.replan_count;
+                } else {
+                    log('失败', data.message, 'error');
+                }
+            } catch (error) {
+                log('错误', error.message, 'error');
+            }
+
+            btn.disabled = false;
+            updateRobotStatus();
+        }
+
+        // 流式执行任务
+        function executeWithStream() {
+            if (!isInitialized) {
+                alert('请先初始化系统');
+                return;
+            }
+
+            const task = document.getElementById('taskInput').value;
+            const output = document.getElementById('streamOutput');
+            const btn = document.getElementById('streamBtn');
+            
+            btn.disabled = true;
+            output.innerHTML = '<span style="color: #00d9ff;">连接中...</span>';
+            
+            // 关闭之前的连接
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            // 使用 fetch 实现 POST 请求的 SSE
+            fetch('/api/execute/stream', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({task: task})
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullText = '';
+
+                function readStream() {
+                    return reader.read().then(({done, value}) => {
+                        if (done) {
+                            btn.disabled = false;
+                            output.innerHTML = fullText + '<span class="typing-cursor"></span>';
+                            updateRobotStatus();
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, {stream: true});
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        lines.forEach(line => {
+                            if (line.startsWith('event: ')) {
+                                const eventType = line.slice(7);
+                                const dataLine = lines[lines.indexOf(line) + 1];
+                                if (dataLine && dataLine.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(dataLine.slice(6));
+                                        handleStreamEvent(eventType, data, output);
+                                        
+                                        if (eventType === 'token' && data.accumulated) {
+                                            fullText = data.accumulated;
+                                        } else if (eventType === 'complete') {
+                                            fullText = data.full_response || fullText;
+                                        }
+                                    } catch (e) {
+                                        console.error('解析 SSE 数据失败:', e);
+                                    }
+                                }
+                            }
+                        });
+
+                        return readStream();
+                    });
+                }
+
+                return readStream();
+            }).catch(error => {
+                output.innerHTML = `<span style="color: #ff4444;">错误: ${error.message}</span>`;
+                btn.disabled = false;
+            });
+        }
+
+        // 处理流式事件
+        function handleStreamEvent(eventType, data, outputElement) {
+            const console = document.getElementById('console');
+            
+            switch(eventType) {
+                case 'start':
+                    log('开始', data.message, 'phase');
+                    outputElement.innerHTML = '<span style="color: #00d9ff;">开始执行任务...</span>\n';
+                    break;
+                    
+                case 'phase':
+                    log('阶段', `[${data.phase}] ${data.message}`, 'phase');
+                    outputElement.innerHTML += `\n<span style="color: #00d9ff;">[${data.phase}]</span> ${data.message}\n`;
+                    break;
+                    
+                case 'thinking':
+                    log('思考', data.content, 'thinking');
+                    outputElement.innerHTML += `<span style="color: #ffd700;">💭 ${data.content}</span>\n`;
+                    break;
+                    
+                case 'plan_complete':
+                    log('规划', '任务规划完成', 'task');
+                    outputElement.innerHTML += '\n<span style="color: #00ff88;">✓ 规划完成</span>\n';
+                    break;
+                    
+                case 'allocation':
+                    log('分配', `${data.task_id} -> ${data.assigned_to}`, 'task');
+                    outputElement.innerHTML += `<span style="color: #00ff88;">📋 ${data.description} → ${data.assigned_to}</span>\n`;
+                    break;
+                    
+                case 'task_start':
+                    log('执行', `开始: ${data.task_id}`, 'task');
+                    outputElement.innerHTML += `\n<span style="color: #00d9ff;">▶ 开始任务: ${data.description}</span>\n`;
+                    break;
+                    
+                case 'task_progress':
+                    outputElement.innerHTML += `<span style="color: #aaa;">  └ ${data.step}</span>\n`;
+                    break;
+                    
+                case 'task_complete':
+                    log('完成', `${data.task_id} 完成`, 'task');
+                    outputElement.innerHTML += `<span style="color: #00ff88;">✓ 任务完成 (${data.duration}s)</span>\n`;
+                    break;
+                    
+                case 'complete':
+                    log('结束', data.message, 'phase');
+                    outputElement.innerHTML += `\n<span style="color: #e94560; font-weight: bold;">🎉 ${data.message}</span>`;
+                    break;
+                    
+                case 'error':
+                    log('错误', data.error, 'error');
+                    outputElement.innerHTML += `<span style="color: #ff4444;">❌ 错误: ${data.message}</span>`;
+                    break;
+            }
+
+            outputElement.scrollTop = outputElement.scrollHeight;
+        }
+
+        // 流式对话
+        function chatWithStream() {
+            if (!isInitialized) {
+                alert('请先初始化系统');
+                return;
+            }
+
+            const message = document.getElementById('chatInput').value;
+            const output = document.getElementById('chatOutput');
+            const btn = document.getElementById('chatBtn');
+            
+            btn.disabled = true;
+            output.innerHTML = '<span style="color: #00d9ff;">Kimi 思考中...</span>';
+
+            fetch('/api/chat/stream', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({message: message})
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullResponse = '';
+
+                function readStream() {
+                    return reader.read().then(({done, value}) => {
+                        if (done) {
+                            btn.disabled = false;
+                            output.innerHTML = fullResponse;
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, {stream: true});
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        lines.forEach(line => {
+                            if (line.startsWith('event: ')) {
+                                const eventType = line.slice(7);
+                                const dataLine = lines[lines.indexOf(line) + 1];
+                                if (dataLine && dataLine.startsWith('data: ')) {
+                                    try {
+                                        const data = JSON.parse(dataLine.slice(6));
+                                        
+                                        if (eventType === 'token' && data.content) {
+                                            fullResponse += data.content;
+                                            output.innerHTML = fullResponse + '<span class="typing-cursor"></span>';
+                                            output.scrollTop = output.scrollHeight;
+                                        } else if (eventType === 'complete') {
+                                            fullResponse = data.full_response || fullResponse;
+                                            output.innerHTML = fullResponse;
+                                        }
+                                    } catch (e) {
+                                        console.error('解析失败:', e);
+                                    }
+                                }
+                            }
+                        });
+
+                        return readStream();
+                    });
+                }
+
+                return readStream();
+            }).catch(error => {
+                output.innerHTML = `<span style="color: #ff4444;">错误: ${error.message}</span>`;
+                btn.disabled = false;
+            });
+        }
+
+        // 定期更新机器人状态
+        setInterval(() => {
+            if (isInitialized) {
+                updateRobotStatus();
+            }
+        }, 3000);
+
+        // 页面加载日志
+        window.onload = () => {
+            log('系统', '页面加载完成，等待初始化...', 'info');
+        };
+    </script>
+</body>
+</html>
