@@ -1,0 +1,150 @@
+event: start
+data: {"message": "开始执行任务: ?????????????", "timestamp": "21:27:06"}
+
+event: robot_message
+data: {"robot_id": "Alice", "robot_type": "MobileManipulation", "avatar": "🚗", "thought": "I need to introduce myself to the team.", "description": "Hello! I'm Alice, a MobileManipulation robot. I'm ready to help with this task.", "phase": "self-description", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:07"}
+
+event: robot_message
+data: {"robot_id": "Bob", "robot_type": "Manipulator", "avatar": "🦾", "thought": "I need to introduce myself to the team.", "description": "Hello! I'm Bob, a Manipulator robot. I'm ready to help with this task.", "phase": "self-description", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:07"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "robot_type": "Drone", "avatar": "🚁", "thought": "I need to introduce myself to the team.", "description": "Hello! I'm Lucy, a Drone robot. I'm ready to help with this task.", "phase": "self-description", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:08"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "I should propose a task allocation.", "plan": {"description": "Analyze requirements and assign subtasks."}, "campaign": "I can be a good leader.", "phase": "task-allocation", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:09"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "I should propose a task allocation.", "plan": {"description": "Analyze requirements and assign subtasks."}, "campaign": "I can be a good leader.", "phase": "task-allocation", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:09"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "I should propose a task allocation.", "plan": {"description": "Analyze requirements and assign subtasks."}, "campaign": "I can be a good leader.", "phase": "task-allocation", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:10"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "I need to vote for the best leader.", "vote_for": "Alice", "reasoning": "Alice has good capabilities.", "phase": "leader-election", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:11"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "I need to vote for the best leader.", "vote_for": "Alice", "reasoning": "Alice has good capabilities.", "phase": "leader-election", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:12"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "I need to vote for the best leader.", "vote_for": "Alice", "reasoning": "Alice has good capabilities.", "phase": "leader-election", "is_leader": false, "action": null, "action_status": null, "timestamp": "21:27:12"}
+
+event: system
+data: {"message": "🗳️ 投票结果: Alice 当选领导者 (3/3 票)"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 0, "timestamp": "21:27:13"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 0, "timestamp": "21:27:14"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 0, "timestamp": "21:27:15"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 1, "timestamp": "21:27:16"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 1, "timestamp": "21:27:16"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 1, "timestamp": "21:27:17"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 2, "timestamp": "21:27:18"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 2, "timestamp": "21:27:19"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 2, "timestamp": "21:27:20"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 3, "timestamp": "21:27:20"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 3, "timestamp": "21:27:21"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 3, "timestamp": "21:27:22"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 4, "timestamp": "21:27:23"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 4, "timestamp": "21:27:24"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 4, "timestamp": "21:27:25"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "Looking back at our progress.", "summary": "We are making good progress.", "future_plan": "Continue with current strategy.", "phase": "reflection", "is_leader": true, "is_reflection": true, "action": null, "action_status": null, "timestamp": "21:27:25"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "Looking back at our progress.", "summary": "We are making good progress.", "future_plan": "Continue with current strategy.", "phase": "reflection", "is_leader": false, "is_reflection": true, "action": null, "action_status": null, "timestamp": "21:27:26"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "Looking back at our progress.", "summary": "We are making good progress.", "future_plan": "Continue with current strategy.", "phase": "reflection", "is_leader": false, "is_reflection": true, "action": null, "action_status": null, "timestamp": "21:27:27"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "updated_plan": "", "phase": "reflection", "is_leader": true, "action": null, "action_status": null, "timestamp": "21:27:29"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 5, "timestamp": "21:27:29"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 5, "timestamp": "21:27:30"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 5, "timestamp": "21:27:31"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 6, "timestamp": "21:27:32"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 6, "timestamp": "21:27:33"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 6, "timestamp": "21:27:34"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 7, "timestamp": "21:27:34"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 7, "timestamp": "21:27:35"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 7, "timestamp": "21:27:36"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 8, "timestamp": "21:27:37"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 8, "timestamp": "21:27:38"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 8, "timestamp": "21:27:38"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": true, "step": 9, "timestamp": "21:27:39"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 9, "timestamp": "21:27:40"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "", "action": "wait()", "action_status": "success", "feedback": {"success": true, "message": "Waiting for next instruction", "type": "wait"}, "phase": "execution", "is_leader": false, "step": 9, "timestamp": "21:27:41"}
+
+event: robot_message
+data: {"robot_id": "Alice", "thought": "Looking back at our progress.", "summary": "We are making good progress.", "future_plan": "Continue with current strategy.", "phase": "reflection", "is_leader": true, "is_reflection": true, "action": null, "action_status": null, "timestamp": "21:27:42"}
+
+event: robot_message
+data: {"robot_id": "Bob", "thought": "Looking back at our progress.", "summary": "We are making good progress.", "future_plan": "Continue with current strategy.", "phase": "reflection", "is_leader": false, "is_reflection": true, "action": null, "action_status": null, "timestamp": "21:27:42"}
+
+event: robot_message
+data: {"robot_id": "Lucy", "thought": "Looking back at our progress.", "summary": "We are making good progress.", "future_plan": "Continue with current strategy.", "phase": "reflection", "is_leader": false, "is_reflection": true, "action": null, "action_status": null, "timestamp": "21:27:43"}
+
+event: complete
+data: {"message": "任务执行完成！", "total_steps": 10, "timestamp": "21:27:43"}
+
+event: system
+data: {"message": "--- 任务结束，领导者状态已重置 ---", "reset_leader": true}
+

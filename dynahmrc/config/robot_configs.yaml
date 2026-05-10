@@ -1,0 +1,37 @@
+# bestman/dynahmrc/config/robot_configs.yaml
+robots:
+  alice:
+    name: "Alice"
+    type: mobile_manipulation
+    capabilities: [navigate, pick, place, open, move, communicate, wait]
+    max_grasp_range: 0.8
+    navigation_speed: 1.0
+    description: "Wheeled robot with an arm, capable of navigation and manipulation"
+    
+  bob:
+    name: "Bob"
+    type: manipulation
+    capabilities: [pick, place, communicate, wait]
+    workspace: "desktop"
+    max_grasp_range: 0.5
+    description: "Desktop-mounted robotic arm, skilled in precise placement"
+    
+  david:
+    name: "David"
+    type: mobile
+    capabilities: [navigate, communicate, wait]
+    navigation_speed: 1.2
+    description: "Wheeled robot built for navigation and exploration"
+    
+  lucy:
+    name: "Lucy"
+    type: drone
+    capabilities: [navigate, pick, place, communicate, wait]
+    max_grasp_range: 0.3
+    can_access: ["high_areas", "hard_to_reach"]
+    description: "Quadrotor drone with a gripper, capable of aerial navigation"
+
+task_defaults:
+  max_steps: 100
+  reflection_interval: 10
+  llm_temperature: 0.5
